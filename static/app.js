@@ -22,6 +22,8 @@ const boardStatus = document.getElementById("board-status");
 const boardStatusDot = document.getElementById("board-status-dot");
 const boardPanelStatus = document.getElementById("board-panel-status");
 const refreshBoardStatusButton = document.getElementById("refresh-board-status");
+const clearBuildsButton = document.getElementById("clear-builds");
+const clearBuildsStatus = document.getElementById("clear-builds-status");
 const statusMessage = document.getElementById("status-message");
 const fileName = document.getElementById("file-name");
 const sidebarTitle = document.getElementById("sidebar-title");
@@ -357,6 +359,37 @@ async function flashCode(result = lastBuildResult) {
   }
 }
 
+async function clearBuilds() {
+  if (!window.confirm("Clear all temporary build folders? The builds/lessons folder will be kept.")) {
+    return;
+  }
+  clearBuildsButton.disabled = true;
+  if (clearBuildsStatus) {
+    clearBuildsStatus.hidden = false;
+    clearBuildsStatus.textContent = "Clearing builds…";
+  }
+  try {
+    const result = await (
+      await fetch("/api/builds/clear", { method: "POST" })
+    ).json();
+    lastBuildResult = null;
+    flashBtn.disabled = true;
+    setLog(result.message || "Build folders cleared.");
+    statusMessage.textContent = result.message || "Build folders cleared.";
+    if (clearBuildsStatus) {
+      clearBuildsStatus.textContent = result.message || "Build folders cleared.";
+    }
+  } catch (error) {
+    const message = `Could not clear builds: ${error.message}`;
+    setLog(message);
+    if (clearBuildsStatus) {
+      clearBuildsStatus.textContent = message;
+    }
+  } finally {
+    clearBuildsButton.disabled = false;
+  }
+}
+
 async function connectSerialPort() {
   if (!serialPortSelect.value || serialPortSelect.value.startsWith("No COM")) return;
   const result = await (
@@ -405,6 +438,9 @@ solutionFlashButton.addEventListener("click", () => {
   buildCode(selectedLesson.solution_code, true);
 });
 refreshBoardStatusButton.addEventListener("click", refreshBoardStatus);
+if (clearBuildsButton) {
+  clearBuildsButton.addEventListener("click", clearBuilds);
+}
 refreshPortsButton.addEventListener("click", refreshPorts);
 connectSerial.addEventListener("click", connectSerialPort);
 disconnectSerial.addEventListener("click", disconnectSerialPort);

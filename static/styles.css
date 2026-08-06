@@ -239,6 +239,16 @@ body.is-resizing-row { cursor: row-resize; }
   color: #ce9178;
 }
 
+.hardware-card .button {
+  margin-top: 10px;
+}
+
+.inline-status {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #b8d9f5;
+}
+
 .board-summary {
   margin: 0 12px 18px;
   padding: 12px;

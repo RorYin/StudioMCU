@@ -160,3 +160,43 @@ def board_status() -> dict:
         "message": "STM32 board detected through ST-Link." if connected else "No STM32 board detected through ST-Link.",
         "probe_output": probe_output,
     }
+
+
+PRESERVED_BUILD_FOLDERS = {"lessons"}
+
+
+def clear_builds(build_root: Path) -> dict:
+    """Delete build output folders, keeping the reserved lessons builds folder."""
+    build_root = build_root.resolve()
+    build_root.mkdir(parents=True, exist_ok=True)
+
+    deleted: list[str] = []
+    preserved: list[str] = []
+    errors: list[str] = []
+
+    for entry in sorted(build_root.iterdir(), key=lambda path: path.name.lower()):
+        if entry.name in PRESERVED_BUILD_FOLDERS:
+            preserved.append(entry.name)
+            continue
+        try:
+            if entry.is_dir():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+            deleted.append(entry.name)
+        except OSError as exc:
+            errors.append(f"{entry.name}: {exc}")
+
+    success = not errors
+    kept = ", ".join(preserved) if preserved else "none"
+    removed = len(deleted)
+    message = f"Cleared {removed} build item(s). Preserved: {kept}."
+    if errors:
+        message += f" Failed: {len(errors)}."
+    return {
+        "success": success,
+        "deleted": deleted,
+        "preserved": preserved,
+        "errors": errors,
+        "message": message,
+    }

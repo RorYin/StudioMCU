@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.lessons import list_lessons, get_lesson
-from app.flash import board_status, build_firmware, flash_firmware
+from app.flash import board_status, build_firmware, flash_firmware, clear_builds
 from app.serial_console import SerialConsoleManager
 
 app = FastAPI()
@@ -102,6 +102,13 @@ async def flash(request: Request):
 @app.get("/api/board/status")
 def get_board_status():
     return board_status()
+
+
+@app.post("/api/builds/clear")
+def api_clear_builds():
+    """Remove temporary build folders, keeping builds/lessons intact."""
+    return clear_builds(BUILD_DIR)
+
 
 @app.get("/api/serial/ports")
 def serial_ports():
