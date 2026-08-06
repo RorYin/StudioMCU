@@ -11,8 +11,7 @@ build/
 # App build artifacts
 builds/
 
-# Toolchains / large local downloads
-toolchain/
+# Optional local toolchain archives outside toolchain/
 arm-gnu-toolchain-*/
 
 # Editors / OS
