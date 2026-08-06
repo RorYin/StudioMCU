@@ -1,0 +1,13 @@
+#include "stm32f446xe.h"
+
+int main(void) {
+    // Enable GPIOA and configure PA5 as output.
+    // Use BSRR to set and reset the pin atomically instead of ODR ^= ...
+
+    while (1) {
+        // GPIOA->BSRR = GPIO_BSRR_BS5;  // set
+        // delay
+        // GPIOA->BSRR = GPIO_BSRR_BR5;  // reset
+        // delay
+    }
+}

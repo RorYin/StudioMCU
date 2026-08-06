@@ -1,0 +1,27 @@
+#include "stm32f446xe.h"
+
+static void uart2_init(void) {
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+
+    GPIOA->MODER &= ~GPIO_MODER_MODE2_Msk;
+    GPIOA->MODER |= GPIO_MODER_MODE2_ALTERNATE;
+    GPIOA->AFR[0] &= ~GPIO_AFR_AFSEL2_Msk;
+    GPIOA->AFR[0] |= GPIO_AFR_AFSEL2_AF7;
+
+    USART2->BRR = 0x008BU;
+    USART2->CR1 = USART_CR1_TE | USART_CR1_UE;
+}
+
+static void uart2_write(const char *text) {
+    while (*text) {
+        while (!(USART2->SR & USART_SR_TXE)) { }
+        USART2->DR = (uint32_t)(*text++);
+    }
+}
+
+int main(void) {
+    uart2_init();
+    uart2_write("Hello from the NUCLEO-F446RE!\r\n");
+    while (1) { }
+}

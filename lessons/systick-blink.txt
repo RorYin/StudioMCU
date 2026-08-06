@@ -1,0 +1,13 @@
+#include "stm32f446xe.h"
+
+static void systick_delay_ms(uint32_t ms) {
+    // Load SysTick for 1 ms ticks using the 16 MHz HSI clock.
+    // Enable the counter, wait for COUNTFLAG, then disable it.
+    (void)ms;
+}
+
+int main(void) {
+    // Enable GPIOA, configure PA5 as output, then blink using systick_delay_ms().
+    while (1) {
+    }
+}

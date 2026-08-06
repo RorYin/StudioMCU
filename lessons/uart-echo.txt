@@ -1,0 +1,19 @@
+#include "stm32f446xe.h"
+
+static void uart2_init(void) {
+    // Enable GPIOA and USART2 clocks.
+    // Configure PA2 (TX) and PA3 (RX) as AF7.
+    // Set 115200 baud and enable TE | RE | UE.
+}
+
+static void uart2_write(char ch) {
+    while (!(USART2->SR & USART_SR_TXE)) { }
+    USART2->DR = (uint32_t)ch;
+}
+
+int main(void) {
+    uart2_init();
+    while (1) {
+        // When RXNE is set, read USART2->DR and echo it back.
+    }
+}

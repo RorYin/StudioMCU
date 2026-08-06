@@ -1,0 +1,11 @@
+#include "stm32f446xe.h"
+
+int main(void) {
+    // 1. Enable GPIOA and GPIOC clocks.
+    // 2. Configure PA5 as push-pull output for LD2.
+    // 3. Leave PC13 as input for the blue user button.
+    // 4. When the button is pressed (PC13 reads low), toggle the LED.
+
+    while (1) {
+    }
+}

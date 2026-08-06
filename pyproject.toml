@@ -1,0 +1,11 @@
+[project]
+name = "studiomcu"
+version = "0.1.0"
+description = "StudioMCU — web-based STM32F446RE learning environment with FastAPI backend."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "pyserial"
+]

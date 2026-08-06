@@ -1,0 +1,26 @@
+#include "stm32f446xe.h"
+
+/*
+ * SPI loopback: short PA7 (MOSI) to PA6 (MISO) on the Nucleo headers.
+ * SPI1 uses PA5=SCK, PA6=MISO, PA7=MOSI (AF5).
+ */
+static void spi1_init(void) {
+    // Enable GPIOA and SPI1 clocks.
+    // Configure PA5/PA6/PA7 as AF5.
+    // Master mode + software NSS (MSTR | SSM | SSI | SPE).
+}
+
+static uint8_t spi1_transfer(uint8_t tx_byte) {
+    while (!(SPI1->SR & SPI_SR_TXE)) { }
+    SPI1->DR = tx_byte;
+    while (!(SPI1->SR & SPI_SR_RXNE)) { }
+    return (uint8_t)(SPI1->DR & 0xFFU);
+}
+
+int main(void) {
+    spi1_init();
+    while (1) {
+        uint8_t response = spi1_transfer(0xA5U);
+        (void)response; /* With MOSI tied to MISO, response should equal 0xA5. */
+    }
+}

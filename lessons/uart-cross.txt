@@ -1,0 +1,27 @@
+#include "stm32f446xe.h"
+
+/*
+ * External UART lesson:
+ * Wire another UART device to PA9 (USART1_TX) and PA10 (USART1_RX).
+ * Grounds must be shared. USART2 remains free for the ST-Link VCP if needed.
+ */
+static void uart1_init(void) {
+    // Enable GPIOA and USART1 clocks.
+    // Configure PA9 and PA10 as AF7.
+    // Set 9600 baud at 16 MHz (BRR = 0x0683) and enable TE | RE | UE.
+}
+
+static void uart1_write(const char *text) {
+    while (*text) {
+        while (!(USART1->SR & USART_SR_TXE)) { }
+        USART1->DR = (uint32_t)(*text++);
+    }
+}
+
+int main(void) {
+    uart1_init();
+    uart1_write("USART1 ready\r\n");
+    while (1) {
+        // Echo bytes received from the external UART device.
+    }
+}

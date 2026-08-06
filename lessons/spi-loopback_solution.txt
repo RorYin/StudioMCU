@@ -1,0 +1,31 @@
+#include "stm32f446xe.h"
+
+/*
+ * SPI loopback: short PA7 (MOSI) to PA6 (MISO) on the Nucleo headers.
+ */
+static void spi1_init(void) {
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+    RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+
+    GPIOA->MODER &= ~(GPIO_MODER_MODE5_Msk | GPIO_MODER_MODE6_Msk | GPIO_MODER_MODE7_Msk);
+    GPIOA->MODER |= (GPIO_MODER_MODE5_ALTERNATE | GPIO_MODER_MODE6_ALTERNATE | GPIO_MODER_MODE7_ALTERNATE);
+    GPIOA->AFR[0] &= ~(GPIO_AFR_AFSEL5_Msk | GPIO_AFR_AFSEL6_Msk | GPIO_AFR_AFSEL7_Msk);
+    GPIOA->AFR[0] |= (GPIO_AFR_AFSEL5_AF5 | GPIO_AFR_AFSEL6_AF5 | GPIO_AFR_AFSEL7_AF5);
+
+    SPI1->CR1 = SPI_CR1_MSTR | SPI_CR1_SSM | SPI_CR1_SSI | SPI_CR1_SPE;
+}
+
+static uint8_t spi1_transfer(uint8_t tx_byte) {
+    while (!(SPI1->SR & SPI_SR_TXE)) { }
+    SPI1->DR = tx_byte;
+    while (!(SPI1->SR & SPI_SR_RXNE)) { }
+    return (uint8_t)(SPI1->DR & 0xFFU);
+}
+
+int main(void) {
+    spi1_init();
+    while (1) {
+        uint8_t response = spi1_transfer(0xA5U);
+        (void)response;
+    }
+}

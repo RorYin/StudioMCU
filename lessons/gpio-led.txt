@@ -1,0 +1,15 @@
+#include "stm32f446xe.h"
+
+static void delay(volatile uint32_t count) {
+    while (count--) { __ASM("nop"); }
+}
+
+int main(void) {
+    // 1. Enable the GPIOA clock with RCC->AHB1ENR.
+    // 2. Configure PA5 (LD2) as a general-purpose output in GPIOA->MODER.
+    // 3. Toggle PA5 inside the loop so the LED blinks.
+
+    while (1) {
+        delay(800000);
+    }
+}

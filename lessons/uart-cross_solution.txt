@@ -1,0 +1,41 @@
+#include "stm32f446xe.h"
+
+/*
+ * External UART lesson:
+ * Wire another UART device to PA9 (USART1_TX) and PA10 (USART1_RX).
+ * Grounds must be shared.
+ */
+static void uart1_init(void) {
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+
+    GPIOA->MODER &= ~(GPIO_MODER_MODE9_Msk | GPIO_MODER_MODE10_Msk);
+    GPIOA->MODER |= (GPIO_MODER_MODE9_ALTERNATE | GPIO_MODER_MODE10_ALTERNATE);
+    GPIOA->AFR[1] &= ~(GPIO_AFR_AFSEL9_Msk | GPIO_AFR_AFSEL10_Msk);
+    GPIOA->AFR[1] |= (GPIO_AFR_AFSEL9_AF7 | GPIO_AFR_AFSEL10_AF7);
+
+    USART1->BRR = 0x0683U; /* 9600 baud @ 16 MHz */
+    USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
+}
+
+static void uart1_write(char ch) {
+    while (!(USART1->SR & USART_SR_TXE)) { }
+    USART1->DR = (uint32_t)ch;
+}
+
+static void uart1_write_str(const char *text) {
+    while (*text) {
+        uart1_write(*text++);
+    }
+}
+
+int main(void) {
+    uart1_init();
+    uart1_write_str("USART1 ready\r\n");
+    while (1) {
+        if (USART1->SR & USART_SR_RXNE) {
+            char received = (char)(USART1->DR & 0xFFU);
+            uart1_write(received);
+        }
+    }
+}

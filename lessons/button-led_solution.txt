@@ -1,0 +1,18 @@
+#include "stm32f446xe.h"
+
+int main(void) {
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOCEN;
+
+    GPIOA->MODER &= ~GPIO_MODER_MODE5_Msk;
+    GPIOA->MODER |= GPIO_MODER_MODE5_OUTPUT;
+    GPIOC->MODER &= ~GPIO_MODER_MODE13_Msk;
+
+    while (1) {
+        if (!(GPIOC->IDR & GPIO_IDR_ID13)) {
+            GPIOA->ODR ^= GPIO_ODR_OD5;
+            for (volatile uint32_t i = 0; i < 300000U; ++i) {
+                __ASM("nop");
+            }
+        }
+    }
+}

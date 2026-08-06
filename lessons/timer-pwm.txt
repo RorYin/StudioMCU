@@ -1,0 +1,16 @@
+#include "stm32f446xe.h"
+
+/*
+ * TIM2 PWM on PA5 (AF1). LD2 brightness is controlled by CCR1 vs ARR.
+ */
+static void tim2_pwm_init(void) {
+    // Enable GPIOA and TIM2 clocks.
+    // Configure PA5 as AF1.
+    // PSC/ARR for a visible PWM frequency, CCMR1 PWM mode 1, enable CC1E + CEN.
+}
+
+int main(void) {
+    tim2_pwm_init();
+    TIM2->CCR1 = 500U; /* Try values between 0 and ARR. */
+    while (1) { }
+}
