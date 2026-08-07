@@ -1,21 +1,15 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
 
-static void uart2_init(void) {
-    // Enable GPIOA and USART2 clocks.
-    // Configure PA2 as AF7 (USART2_TX).
-    // Set 115200 baud for the 16 MHz HSI clock (BRR = 0x008B).
-    // Enable transmitter + USART (TE | UE).
-}
+int main(void)
+{
+  /* 1. Enable GPIOA and USART2 clocks with LL_AHB1/APB1_GRP1_EnableClock(). */
+  /* 2. Set PA2 to alternate function AF7 (USART2_TX). */
+  /* 3. Configure USART2 for 115200 baud, TX only, then enable it. */
+  /* 4. Transmit a hello string with LL_USART_TransmitData8(). */
 
-static void uart2_write(const char *text) {
-    while (*text) {
-        while (!(USART2->SR & USART_SR_TXE)) { }
-        USART2->DR = (uint32_t)(*text++);
-    }
-}
-
-int main(void) {
-    uart2_init();
-    uart2_write("Hello from the NUCLEO-F446RE!\r\n");
-    while (1) { }
+  while (1)
+  {
+  }
 }

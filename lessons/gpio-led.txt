@@ -1,15 +1,13 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_hal.h"
 
-static void delay(volatile uint32_t count) {
-    while (count--) { __ASM("nop"); }
-}
+int main(void)
+{
+  /* 1. Call HAL_Init() so SysTick is ready for HAL_Delay(). */
+  /* 2. Enable the GPIOA clock with __HAL_RCC_GPIOA_CLK_ENABLE(). */
+  /* 3. Configure PA5 (LD2) as GPIO_MODE_OUTPUT_PP with HAL_GPIO_Init(). */
+  /* 4. Toggle LD2 with HAL_GPIO_TogglePin() and delay with HAL_Delay(). */
 
-int main(void) {
-    // 1. Enable the GPIOA clock with RCC->AHB1ENR.
-    // 2. Configure PA5 (LD2) as a general-purpose output in GPIOA->MODER.
-    // 3. Toggle PA5 inside the loop so the LED blinks.
-
-    while (1) {
-        delay(800000);
-    }
+  while (1)
+  {
+  }
 }

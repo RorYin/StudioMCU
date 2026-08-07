@@ -1,50 +1,17 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
+#include "stm32f4xx_ll_i2c.h"
 
-/*
- * I2C1 on PB8=SCL, PB9=SDA (AF4).
- * Scan for any ACK on addresses 0x08..0x77 and report over USART2.
- */
-static void uart2_init(void) {
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
-    GPIOA->MODER &= ~GPIO_MODER_MODE2_Msk;
-    GPIOA->MODER |= GPIO_MODER_MODE2_ALTERNATE;
-    GPIOA->AFR[0] &= ~GPIO_AFR_AFSEL2_Msk;
-    GPIOA->AFR[0] |= GPIO_AFR_AFSEL2_AF7;
-    USART2->BRR = 0x008BU;
-    USART2->CR1 = USART_CR1_TE | USART_CR1_UE;
-}
+int main(void)
+{
+  /* I2C1 on PB8=SCL, PB9=SDA (AF4). Scan for ACK responses. */
+  /* 1. Enable GPIOB and I2C1 clocks. */
+  /* 2. Configure PB8/PB9 as open-drain AF4 with pull-ups. */
+  /* 3. Program CCR/TRISE for ~100 kHz and enable PE. */
+  /* 4. Generate START, send each 7-bit address, check ADDR flag. */
 
-static void uart2_write(const char *text) {
-    while (*text) {
-        while (!(USART2->SR & USART_SR_TXE)) { }
-        USART2->DR = (uint32_t)(*text++);
-    }
-}
-
-static void i2c1_init(void) {
-    // Enable GPIOB and I2C1 clocks.
-    // Configure PB8/PB9 as open-drain AF4.
-    // Set CCR/TRISE for ~100 kHz @ 16 MHz and enable PE.
-}
-
-static int i2c1_probe(uint8_t addr7) {
-    // Generate START, send addr<<1, check ADDR flag, then STOP.
-    // Return 1 if the device ACKs.
-    (void)addr7;
-    return 0;
-}
-
-int main(void) {
-    uart2_init();
-    i2c1_init();
-    uart2_write("I2C scan:\r\n");
-
-    for (uint8_t addr = 0x08U; addr < 0x78U; ++addr) {
-        if (i2c1_probe(addr)) {
-            uart2_write("Found device\r\n");
-        }
-    }
-
-    while (1) { }
+  while (1)
+  {
+  }
 }

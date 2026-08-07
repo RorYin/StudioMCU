@@ -1,27 +1,38 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
 
-static void uart2_init(void) {
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+static void USART2_Init(void)
+{
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
 
-    GPIOA->MODER &= ~GPIO_MODER_MODE2_Msk;
-    GPIOA->MODER |= GPIO_MODER_MODE2_ALTERNATE;
-    GPIOA->AFR[0] &= ~GPIO_AFR_AFSEL2_Msk;
-    GPIOA->AFR[0] |= GPIO_AFR_AFSEL2_AF7;
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_7);
 
-    USART2->BRR = 0x008BU;
-    USART2->CR1 = USART_CR1_TE | USART_CR1_UE;
+  LL_USART_SetBaudRate(USART2, 16000000U, 115200U);
+  LL_USART_SetTransferDirection(USART2, LL_USART_DIRECTION_TX);
+  LL_USART_Enable(USART2);
 }
 
-static void uart2_write(const char *text) {
-    while (*text) {
-        while (!(USART2->SR & USART_SR_TXE)) { }
-        USART2->DR = (uint32_t)(*text++);
+static void USART2_WriteString(const char *text)
+{
+  while (*text != '\0')
+  {
+    while (!LL_USART_IsActiveFlag_TXE(USART2))
+    {
     }
+    LL_USART_TransmitData8(USART2, (uint8_t)(*text));
+    text++;
+  }
 }
 
-int main(void) {
-    uart2_init();
-    uart2_write("Hello from the NUCLEO-F446RE!\r\n");
-    while (1) { }
+int main(void)
+{
+  USART2_Init();
+  USART2_WriteString("Hello from the NUCLEO-F446RE!\r\n");
+
+  while (1)
+  {
+  }
 }

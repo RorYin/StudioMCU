@@ -1,53 +1,18 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
+#include "stm32f4xx_ll_adc.h"
+#include "stm32f4xx_ll_utils.h"
 
-/*
- * Read ADC1 channel 0 on PA0 (Arduino A0).
- * Print the conversion result over USART2 (ST-Link VCP).
- */
-static void uart2_init(void) {
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
-    GPIOA->MODER &= ~GPIO_MODER_MODE2_Msk;
-    GPIOA->MODER |= GPIO_MODER_MODE2_ALTERNATE;
-    GPIOA->AFR[0] &= ~GPIO_AFR_AFSEL2_Msk;
-    GPIOA->AFR[0] |= GPIO_AFR_AFSEL2_AF7;
-    USART2->BRR = 0x008BU;
-    USART2->CR1 = USART_CR1_TE | USART_CR1_UE;
-}
+int main(void)
+{
+  /* Read ADC1 channel 0 on PA0 and print over USART2. */
+  /* 1. Initialize USART2 with LL APIs. */
+  /* 2. Set PA0 to analog mode and enable ADC1. */
+  /* 3. Start conversion, wait for EOCS, read 12-bit data. */
+  /* 4. Print the result over the serial monitor. */
 
-static void uart2_write(const char *text) {
-    while (*text) {
-        while (!(USART2->SR & USART_SR_TXE)) { }
-        USART2->DR = (uint32_t)(*text++);
-    }
-}
-
-static void adc1_init(void) {
-    // Enable ADC1 clock.
-    // Set PA0 to analog mode.
-    // Power on ADC1 and select channel 0 in SQR3.
-}
-
-static uint16_t adc1_read(void) {
-    // Start conversion, wait for EOC, return ADC1->DR.
-    return 0U;
-}
-
-int main(void) {
-    char line[32];
-    uart2_init();
-    adc1_init();
-
-    while (1) {
-        uint16_t value = adc1_read();
-        /* Simple decimal print without libc */
-        line[0] = 'A'; line[1] = 'D'; line[2] = 'C'; line[3] = '=';
-        line[4] = (char)('0' + ((value / 1000U) % 10U));
-        line[5] = (char)('0' + ((value / 100U) % 10U));
-        line[6] = (char)('0' + ((value / 10U) % 10U));
-        line[7] = (char)('0' + (value % 10U));
-        line[8] = '\r'; line[9] = '\n'; line[10] = 0;
-        uart2_write(line);
-        for (volatile uint32_t i = 0; i < 800000U; ++i) { __ASM("nop"); }
-    }
+  while (1)
+  {
+  }
 }

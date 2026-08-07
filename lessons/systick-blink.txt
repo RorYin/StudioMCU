@@ -1,13 +1,12 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_hal.h"
 
-static void systick_delay_ms(uint32_t ms) {
-    // Load SysTick for 1 ms ticks using the 16 MHz HSI clock.
-    // Enable the counter, wait for COUNTFLAG, then disable it.
-    (void)ms;
-}
+int main(void)
+{
+  /* 1. Call HAL_Init() — this programs SysTick for 1 ms ticks. */
+  /* 2. Enable GPIOA and configure PA5 as a push-pull output. */
+  /* 3. Blink LD2 using HAL_GPIO_TogglePin() and HAL_Delay(500). */
 
-int main(void) {
-    // Enable GPIOA, configure PA5 as output, then blink using systick_delay_ms().
-    while (1) {
-    }
+  while (1)
+  {
+  }
 }

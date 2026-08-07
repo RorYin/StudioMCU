@@ -1,11 +1,13 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_hal.h"
 
-int main(void) {
-    // 1. Enable GPIOA and GPIOC clocks.
-    // 2. Configure PA5 as push-pull output for LD2.
-    // 3. Leave PC13 as input for the blue user button.
-    // 4. When the button is pressed (PC13 reads low), toggle the LED.
+int main(void)
+{
+  /* 1. Call HAL_Init() and enable GPIOA + GPIOC clocks. */
+  /* 2. Configure PA5 as output and PC13 as input (user button). */
+  /* 3. Poll HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13). */
+  /* 4. When the button reads GPIO_PIN_RESET (pressed), toggle LD2. */
 
-    while (1) {
-    }
+  while (1)
+  {
+  }
 }

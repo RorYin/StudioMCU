@@ -41,10 +41,10 @@ def build_firmware(code: str, build_dir: Path) -> dict:
     main_c = build_dir / "main.c"
     main_c.write_text(code)
 
-    for template in ["startup.c", "linker.ld", "stm32f446xe.h"]:
-        src = FIRMWARE_TEMPLATES / template
-        dst = build_dir / template
-        shutil.copy(src, dst)
+    # Copy the full ST-style teaching CMSIS/HAL/LL firmware pack.
+    for src in sorted(FIRMWARE_TEMPLATES.iterdir()):
+        if src.is_file():
+            shutil.copy(src, build_dir / src.name)
 
     elf_path = build_dir / "firmware.elf"
     bin_path = build_dir / "firmware.bin"
@@ -55,6 +55,10 @@ def build_firmware(code: str, build_dir: Path) -> dict:
             "log": "Tool not found: arm-none-eabi-gcc. Install the ARM GNU toolchain and add it to PATH.",
         }
 
+    c_sources = sorted(
+        path for path in build_dir.glob("*.c") if path.name != "main.c"
+    ) + [main_c]
+
     gcc = [
         str(gcc_path),
         "-mcpu=cortex-m4",
@@ -63,16 +67,18 @@ def build_firmware(code: str, build_dir: Path) -> dict:
         "-O0",
         "-ffreestanding",
         "-nostdlib",
+        "-ffunction-sections",
+        "-fdata-sections",
         "-Wall",
         "-Wextra",
         "-I",
         str(build_dir),
         "-T",
         str(build_dir / "linker.ld"),
+        "-Wl,--gc-sections",
         "-o",
         str(elf_path),
-        str(build_dir / "startup.c"),
-        str(main_c),
+        *[str(path) for path in c_sources],
     ]
     try:
         result = subprocess.run(gcc, capture_output=True, text=True)

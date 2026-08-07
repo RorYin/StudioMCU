@@ -1,19 +1,15 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
 
-static void uart2_init(void) {
-    // Enable GPIOA and USART2 clocks.
-    // Configure PA2 (TX) and PA3 (RX) as AF7.
-    // Set 115200 baud and enable TE | RE | UE.
-}
+int main(void)
+{
+  /* 1. Enable GPIOA and USART2 clocks. */
+  /* 2. Configure PA2 (TX) and PA3 (RX) as AF7. */
+  /* 3. Enable USART2 TX+RX at 115200 baud. */
+  /* 4. Echo each received byte with LL_USART_ReceiveData8 / TransmitData8. */
 
-static void uart2_write(char ch) {
-    while (!(USART2->SR & USART_SR_TXE)) { }
-    USART2->DR = (uint32_t)ch;
-}
-
-int main(void) {
-    uart2_init();
-    while (1) {
-        // When RXNE is set, read USART2->DR and echo it back.
-    }
+  while (1)
+  {
+  }
 }

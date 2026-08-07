@@ -1,26 +1,37 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_spi.h"
 
 /*
  * SPI client (slave): another SPI master drives SCK/MOSI into this board.
  */
-static void spi1_init(void) {
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-    RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+static void SPI1_Init(void)
+{
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
 
-    GPIOA->MODER &= ~(GPIO_MODER_MODE5_Msk | GPIO_MODER_MODE6_Msk | GPIO_MODER_MODE7_Msk);
-    GPIOA->MODER |= (GPIO_MODER_MODE5_ALTERNATE | GPIO_MODER_MODE6_ALTERNATE | GPIO_MODER_MODE7_ALTERNATE);
-    GPIOA->AFR[0] &= ~(GPIO_AFR_AFSEL5_Msk | GPIO_AFR_AFSEL6_Msk | GPIO_AFR_AFSEL7_Msk);
-    GPIOA->AFR[0] |= (GPIO_AFR_AFSEL5_AF5 | GPIO_AFR_AFSEL6_AF5 | GPIO_AFR_AFSEL7_AF5);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_5);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_5);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_5);
 
-    SPI1->CR1 = SPI_CR1_SSM | SPI_CR1_SSI | SPI_CR1_SPE;
+  LL_SPI_SetMode(SPI1, LL_SPI_MODE_SLAVE);
+  LL_SPI_SetNSSModeSoft(SPI1);
+  LL_SPI_Enable(SPI1);
 }
 
-int main(void) {
-    spi1_init();
-    while (1) {
-        if (SPI1->SR & SPI_SR_RXNE) {
-            uint8_t received = (uint8_t)(SPI1->DR & 0xFFU);
-            (void)received;
-        }
+int main(void)
+{
+  SPI1_Init();
+
+  while (1)
+  {
+    if (LL_SPI_IsActiveFlag_RXNE(SPI1))
+    {
+      uint8_t received = LL_SPI_ReceiveData8(SPI1);
+      (void)received;
     }
+  }
 }

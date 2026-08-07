@@ -1,29 +1,35 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_tim.h"
 
 /*
  * TIM2 PWM on PA5 (AF1). LD2 brightness is controlled by CCR1 vs ARR.
  */
-static void tim2_pwm_init(void) {
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+static void TIM2_PWM_Init(void)
+{
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM2);
 
-    GPIOA->MODER &= ~GPIO_MODER_MODE5_Msk;
-    GPIOA->MODER |= GPIO_MODER_MODE5_ALTERNATE;
-    GPIOA->AFR[0] &= ~GPIO_AFR_AFSEL5_Msk;
-    GPIOA->AFR[0] |= GPIO_AFR_AFSEL5_AF1;
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_1);
 
-    TIM2->PSC = 15U;          /* 16 MHz / 16 = 1 MHz timer clock */
-    TIM2->ARR = 999U;         /* 1 kHz PWM */
-    TIM2->CCR1 = 0U;
-    TIM2->CCMR1 = TIM_CCMR1_OC1M_PWM1 | TIM_CCMR1_OC1PE;
-    TIM2->CCER = TIM_CCER_CC1E;
-    TIM2->CR1 = TIM_CR1_ARPE;
-    TIM2->EGR = TIM_EGR_UG;
-    TIM2->CR1 |= TIM_CR1_CEN;
+  LL_TIM_SetPrescaler(TIM2, 15U);       /* 16 MHz / 16 = 1 MHz */
+  LL_TIM_SetAutoReload(TIM2, 999U);     /* 1 kHz PWM */
+  LL_TIM_OC_SetCompareCH1(TIM2, 0U);
+  LL_TIM_OC_SetMode(TIM2, LL_TIM_OCMODE_PWM1);
+  LL_TIM_OC_EnablePreload(TIM2);
+  LL_TIM_CC_EnableChannel(TIM2);
+  LL_TIM_EnableARRPreload(TIM2);
+  LL_TIM_GenerateEvent_UPDATE(TIM2);
+  LL_TIM_EnableCounter(TIM2);
 }
 
-int main(void) {
-    tim2_pwm_init();
-    TIM2->CCR1 = 500U; /* ~50% duty */
-    while (1) { }
+int main(void)
+{
+  TIM2_PWM_Init();
+  LL_TIM_OC_SetCompareCH1(TIM2, 500U); /* ~50% duty */
+
+  while (1)
+  {
+  }
 }

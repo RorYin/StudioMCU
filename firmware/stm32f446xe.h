@@ -1,10 +1,13 @@
 /**
- * @file stm32f446xe.h
- * @brief Compact CMSIS-style device header for STM32F446RE (NUCLEO-F446RE).
- *
- * Naming, peripheral structs, and bit macros follow STMicroelectronics CMSIS
- * device headers so register-level lessons match vendor documentation.
- */
+  ******************************************************************************
+  * @file    stm32f446xe.h
+  * @author  StudioMCU (teaching subset of ST CMSIS device headers)
+  * @brief   CMSIS-style device header for STM32F446RE (NUCLEO-F446RE).
+  *
+  * Naming, peripheral structs, bit macros, and register helpers follow
+  * STMicroelectronics CMSIS / HAL / LL conventions so lessons match vendor docs.
+  ******************************************************************************
+  */
 #ifndef STM32F446XE_H
 #define STM32F446XE_H
 
@@ -24,6 +27,29 @@ extern "C" {
 #ifndef __ASM
 #define __ASM   __asm
 #endif
+
+#ifndef __STATIC_INLINE
+#define __STATIC_INLINE  static inline
+#endif
+
+#ifndef __NOP
+#define __NOP()  __ASM volatile ("nop")
+#endif
+
+/* -------------------------------------------------------------------------- */
+/* ST HAL/LL register access macros                                           */
+/* -------------------------------------------------------------------------- */
+#define SET_BIT(REG, BIT)     ((REG) |= (BIT))
+#define CLEAR_BIT(REG, BIT)   ((REG) &= ~(BIT))
+#define READ_BIT(REG, BIT)    ((REG) & (BIT))
+#define CLEAR_REG(REG)        ((REG) = (0x0U))
+#define WRITE_REG(REG, VAL)   ((REG) = (VAL))
+#define READ_REG(REG)         ((REG))
+#define MODIFY_REG(REG, CLEARMASK, SETMASK)  \
+  WRITE_REG((REG), (((READ_REG(REG)) & (~(CLEARMASK))) | (SETMASK)))
+
+/* Position of the lowest set bit (used by LL unitary functions). */
+#define POSITION_VAL(VAL)  ((uint32_t)__builtin_ctz((VAL)))
 
 /* -------------------------------------------------------------------------- */
 /* Memory map                                                                 */
@@ -60,175 +86,175 @@ extern "C" {
 /* Peripheral register structs (ST CMSIS layout)                              */
 /* -------------------------------------------------------------------------- */
 typedef struct {
-    __IO uint32_t MODER;
-    __IO uint32_t OTYPER;
-    __IO uint32_t OSPEEDR;
-    __IO uint32_t PUPDR;
-    __I  uint32_t IDR;
-    __IO uint32_t ODR;
-    __IO uint32_t BSRR;
-    __IO uint32_t LCKR;
-    __IO uint32_t AFR[2];
+  __IO uint32_t MODER;
+  __IO uint32_t OTYPER;
+  __IO uint32_t OSPEEDR;
+  __IO uint32_t PUPDR;
+  __I  uint32_t IDR;
+  __IO uint32_t ODR;
+  __IO uint32_t BSRR;
+  __IO uint32_t LCKR;
+  __IO uint32_t AFR[2];
 } GPIO_TypeDef;
 
 typedef struct {
-    __IO uint32_t CR;
-    __IO uint32_t PLLCFGR;
-    __IO uint32_t CFGR;
-    __IO uint32_t CIR;
-    __IO uint32_t AHB1RSTR;
-    __IO uint32_t AHB2RSTR;
-    __IO uint32_t AHB3RSTR;
-    uint32_t      RESERVED0;
-    __IO uint32_t APB1RSTR;
-    __IO uint32_t APB2RSTR;
-    uint32_t      RESERVED1[2];
-    __IO uint32_t AHB1ENR;
-    __IO uint32_t AHB2ENR;
-    __IO uint32_t AHB3ENR;
-    uint32_t      RESERVED2;
-    __IO uint32_t APB1ENR;
-    __IO uint32_t APB2ENR;
-    uint32_t      RESERVED3[2];
-    __IO uint32_t AHB1LPENR;
-    __IO uint32_t AHB2LPENR;
-    __IO uint32_t AHB3LPENR;
-    uint32_t      RESERVED4;
-    __IO uint32_t APB1LPENR;
-    __IO uint32_t APB2LPENR;
-    uint32_t      RESERVED5[2];
-    __IO uint32_t BDCR;
-    __IO uint32_t CSR;
-    uint32_t      RESERVED6[2];
-    __IO uint32_t SSCGR;
-    __IO uint32_t PLLI2SCFGR;
-    __IO uint32_t PLLSAICFGR;
-    __IO uint32_t DCKCFGR;
-    __IO uint32_t CKGATENR;
-    __IO uint32_t DCKCFGR2;
+  __IO uint32_t CR;
+  __IO uint32_t PLLCFGR;
+  __IO uint32_t CFGR;
+  __IO uint32_t CIR;
+  __IO uint32_t AHB1RSTR;
+  __IO uint32_t AHB2RSTR;
+  __IO uint32_t AHB3RSTR;
+  uint32_t      RESERVED0;
+  __IO uint32_t APB1RSTR;
+  __IO uint32_t APB2RSTR;
+  uint32_t      RESERVED1[2];
+  __IO uint32_t AHB1ENR;
+  __IO uint32_t AHB2ENR;
+  __IO uint32_t AHB3ENR;
+  uint32_t      RESERVED2;
+  __IO uint32_t APB1ENR;
+  __IO uint32_t APB2ENR;
+  uint32_t      RESERVED3[2];
+  __IO uint32_t AHB1LPENR;
+  __IO uint32_t AHB2LPENR;
+  __IO uint32_t AHB3LPENR;
+  uint32_t      RESERVED4;
+  __IO uint32_t APB1LPENR;
+  __IO uint32_t APB2LPENR;
+  uint32_t      RESERVED5[2];
+  __IO uint32_t BDCR;
+  __IO uint32_t CSR;
+  uint32_t      RESERVED6[2];
+  __IO uint32_t SSCGR;
+  __IO uint32_t PLLI2SCFGR;
+  __IO uint32_t PLLSAICFGR;
+  __IO uint32_t DCKCFGR;
+  __IO uint32_t CKGATENR;
+  __IO uint32_t DCKCFGR2;
 } RCC_TypeDef;
 
 typedef struct {
-    __IO uint32_t SR;
-    __IO uint32_t DR;
-    __IO uint32_t BRR;
-    __IO uint32_t CR1;
-    __IO uint32_t CR2;
-    __IO uint32_t CR3;
-    __IO uint32_t GTPR;
+  __IO uint32_t SR;
+  __IO uint32_t DR;
+  __IO uint32_t BRR;
+  __IO uint32_t CR1;
+  __IO uint32_t CR2;
+  __IO uint32_t CR3;
+  __IO uint32_t GTPR;
 } USART_TypeDef;
 
 typedef struct {
-    __IO uint32_t CR1;
-    __IO uint32_t CR2;
-    __IO uint32_t SR;
-    __IO uint32_t DR;
-    __IO uint32_t CRCPR;
-    __IO uint32_t RXCRCR;
-    __IO uint32_t TXCRCR;
-    __IO uint32_t I2SCFGR;
-    __IO uint32_t I2SPR;
+  __IO uint32_t CR1;
+  __IO uint32_t CR2;
+  __IO uint32_t SR;
+  __IO uint32_t DR;
+  __IO uint32_t CRCPR;
+  __IO uint32_t RXCRCR;
+  __IO uint32_t TXCRCR;
+  __IO uint32_t I2SCFGR;
+  __IO uint32_t I2SPR;
 } SPI_TypeDef;
 
 typedef struct {
-    __IO uint32_t CR1;
-    __IO uint32_t CR2;
-    __IO uint32_t OAR1;
-    __IO uint32_t OAR2;
-    __IO uint32_t DR;
-    __IO uint32_t SR1;
-    __IO uint32_t SR2;
-    __IO uint32_t CCR;
-    __IO uint32_t TRISE;
-    __IO uint32_t FLTR;
+  __IO uint32_t CR1;
+  __IO uint32_t CR2;
+  __IO uint32_t OAR1;
+  __IO uint32_t OAR2;
+  __IO uint32_t DR;
+  __IO uint32_t SR1;
+  __IO uint32_t SR2;
+  __IO uint32_t CCR;
+  __IO uint32_t TRISE;
+  __IO uint32_t FLTR;
 } I2C_TypeDef;
 
 typedef struct {
-    __IO uint32_t CR1;
-    __IO uint32_t CR2;
-    __IO uint32_t SMCR;
-    __IO uint32_t DIER;
-    __IO uint32_t SR;
-    __IO uint32_t EGR;
-    __IO uint32_t CCMR1;
-    __IO uint32_t CCMR2;
-    __IO uint32_t CCER;
-    __IO uint32_t CNT;
-    __IO uint32_t PSC;
-    __IO uint32_t ARR;
-    __IO uint32_t RCR;
-    __IO uint32_t CCR1;
-    __IO uint32_t CCR2;
-    __IO uint32_t CCR3;
-    __IO uint32_t CCR4;
-    __IO uint32_t BDTR;
-    __IO uint32_t DCR;
-    __IO uint32_t DMAR;
+  __IO uint32_t CR1;
+  __IO uint32_t CR2;
+  __IO uint32_t SMCR;
+  __IO uint32_t DIER;
+  __IO uint32_t SR;
+  __IO uint32_t EGR;
+  __IO uint32_t CCMR1;
+  __IO uint32_t CCMR2;
+  __IO uint32_t CCER;
+  __IO uint32_t CNT;
+  __IO uint32_t PSC;
+  __IO uint32_t ARR;
+  __IO uint32_t RCR;
+  __IO uint32_t CCR1;
+  __IO uint32_t CCR2;
+  __IO uint32_t CCR3;
+  __IO uint32_t CCR4;
+  __IO uint32_t BDTR;
+  __IO uint32_t DCR;
+  __IO uint32_t DMAR;
 } TIM_TypeDef;
 
 typedef struct {
-    __IO uint32_t SR;
-    __IO uint32_t CR1;
-    __IO uint32_t CR2;
-    __IO uint32_t SMPR1;
-    __IO uint32_t SMPR2;
-    __IO uint32_t JOFR1;
-    __IO uint32_t JOFR2;
-    __IO uint32_t JOFR3;
-    __IO uint32_t JOFR4;
-    __IO uint32_t HTR;
-    __IO uint32_t LTR;
-    __IO uint32_t SQR1;
-    __IO uint32_t SQR2;
-    __IO uint32_t SQR3;
-    __IO uint32_t JSQR;
-    __IO uint32_t JDR1;
-    __IO uint32_t JDR2;
-    __IO uint32_t JDR3;
-    __IO uint32_t JDR4;
-    __IO uint32_t DR;
+  __IO uint32_t SR;
+  __IO uint32_t CR1;
+  __IO uint32_t CR2;
+  __IO uint32_t SMPR1;
+  __IO uint32_t SMPR2;
+  __IO uint32_t JOFR1;
+  __IO uint32_t JOFR2;
+  __IO uint32_t JOFR3;
+  __IO uint32_t JOFR4;
+  __IO uint32_t HTR;
+  __IO uint32_t LTR;
+  __IO uint32_t SQR1;
+  __IO uint32_t SQR2;
+  __IO uint32_t SQR3;
+  __IO uint32_t JSQR;
+  __IO uint32_t JDR1;
+  __IO uint32_t JDR2;
+  __IO uint32_t JDR3;
+  __IO uint32_t JDR4;
+  __IO uint32_t DR;
 } ADC_TypeDef;
 
 typedef struct {
-    __IO uint32_t IMR;
-    __IO uint32_t EMR;
-    __IO uint32_t RTSR;
-    __IO uint32_t FTSR;
-    __IO uint32_t SWIER;
-    __IO uint32_t PR;
+  __IO uint32_t IMR;
+  __IO uint32_t EMR;
+  __IO uint32_t RTSR;
+  __IO uint32_t FTSR;
+  __IO uint32_t SWIER;
+  __IO uint32_t PR;
 } EXTI_TypeDef;
 
 typedef struct {
-    __IO uint32_t MEMRMP;
-    __IO uint32_t PMC;
-    __IO uint32_t EXTICR[4];
-    uint32_t      RESERVED[2];
-    __IO uint32_t CMPCR;
-    uint32_t      RESERVED1[2];
-    __IO uint32_t CFGR;
+  __IO uint32_t MEMRMP;
+  __IO uint32_t PMC;
+  __IO uint32_t EXTICR[4];
+  uint32_t      RESERVED[2];
+  __IO uint32_t CMPCR;
+  uint32_t      RESERVED1[2];
+  __IO uint32_t CFGR;
 } SYSCFG_TypeDef;
 
 typedef struct {
-    __IO uint32_t CTRL;
-    __IO uint32_t LOAD;
-    __IO uint32_t VAL;
-    __I  uint32_t CALIB;
+  __IO uint32_t CTRL;
+  __IO uint32_t LOAD;
+  __IO uint32_t VAL;
+  __I  uint32_t CALIB;
 } SysTick_Type;
 
 typedef struct {
-    __IO uint32_t ISER[8];
-    uint32_t      RESERVED0[24];
-    __IO uint32_t ICER[8];
-    uint32_t      RESERVED1[24];
-    __IO uint32_t ISPR[8];
-    uint32_t      RESERVED2[24];
-    __IO uint32_t ICPR[8];
-    uint32_t      RESERVED3[24];
-    __IO uint32_t IABR[8];
-    uint32_t      RESERVED4[56];
-    __IO uint8_t  IP[240];
-    uint32_t      RESERVED5[644];
-    __O  uint32_t STIR;
+  __IO uint32_t ISER[8];
+  uint32_t      RESERVED0[24];
+  __IO uint32_t ICER[8];
+  uint32_t      RESERVED1[24];
+  __IO uint32_t ISPR[8];
+  uint32_t      RESERVED2[24];
+  __IO uint32_t ICPR[8];
+  uint32_t      RESERVED3[24];
+  __IO uint32_t IABR[8];
+  uint32_t      RESERVED4[56];
+  __IO uint8_t  IP[240];
+  uint32_t      RESERVED5[644];
+  __O  uint32_t STIR;
 } NVIC_Type;
 
 /* -------------------------------------------------------------------------- */
@@ -254,13 +280,13 @@ typedef struct {
 /* IRQn values used by simple lessons                                         */
 /* -------------------------------------------------------------------------- */
 typedef enum {
-    NonMaskableInt_IRQn   = -14,
-    HardFault_IRQn        = -13,
-    SVCall_IRQn           = -5,
-    PendSV_IRQn           = -2,
-    SysTick_IRQn          = -1,
-    EXTI15_10_IRQn        = 40,
-    USART2_IRQn           = 38,
+  NonMaskableInt_IRQn   = -14,
+  HardFault_IRQn        = -13,
+  SVCall_IRQn           = -5,
+  PendSV_IRQn           = -2,
+  SysTick_IRQn          = -1,
+  USART2_IRQn           = 38,
+  EXTI15_10_IRQn        = 40,
 } IRQn_Type;
 
 /* -------------------------------------------------------------------------- */
@@ -312,9 +338,10 @@ typedef enum {
 #define GPIO_MODER_MODE10_ALTERNATE         GPIO_MODER_MODEy_ALTERNATE(10)
 #define GPIO_MODER_MODE13_INPUT             GPIO_MODER_MODEy_INPUT(13)
 
-#define GPIO_AFRy_AFSELx_Pos(y, x)          ((((uint32_t)(x) & 7U) * 4U))
-#define GPIO_AFRy_AFSELx_Msk(y, x)          (0xFU << GPIO_AFRy_AFSELx_Pos(y, x))
-#define GPIO_AFRy_AFSELx(y, x, af)          (((uint32_t)(af) & 0xFU) << GPIO_AFRy_AFSELx_Pos(y, x))
+/* Official F4 CMSIS aliases (MODER / AFRL naming). */
+#define GPIO_MODER_MODER0                   GPIO_MODER_MODE0_Msk
+#define GPIO_MODER_MODER5                   GPIO_MODER_MODE5_Msk
+#define GPIO_MODER_MODER13                  GPIO_MODER_MODE13_Msk
 
 #define GPIO_AFR_AFSEL0_Pos                 (0U)
 #define GPIO_AFR_AFSEL2_Pos                 (8U)
@@ -350,8 +377,9 @@ typedef enum {
 #define GPIO_IDR_ID13                       (1U << 13)
 #define GPIO_BSRR_BS5                       (1U << 5)
 #define GPIO_BSRR_BR5                       (1U << (5U + 16U))
+#define GPIO_BSRR_BS_0                      (0x00000001U)
+#define GPIO_BSRR_BR_0                      (0x00010000U)
 
-/* Compatibility aliases matching older AFRL/AFRH examples */
 #define GPIO_AFRL_AFSEL2_Msk                GPIO_AFR_AFSEL2_Msk
 #define GPIO_AFRL_AFSEL3_Msk                GPIO_AFR_AFSEL3_Msk
 #define GPIO_AFRL_AFSEL5_Msk                GPIO_AFR_AFSEL5_Msk
@@ -405,6 +433,7 @@ typedef enum {
 /* -------------------------------------------------------------------------- */
 #define TIM_CR1_CEN                         (1U << 0)
 #define TIM_CR1_ARPE                        (1U << 7)
+#define TIM_CCMR1_OC1M_Pos                  (4U)
 #define TIM_CCMR1_OC1M_PWM1                 (6U << 4)
 #define TIM_CCMR1_OC1PE                     (1U << 3)
 #define TIM_CCER_CC1E                       (1U << 0)

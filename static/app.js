@@ -49,6 +49,10 @@ let viewingReference = false;
 let firmwareFiles = [];
 let activeSidebar = "lessons";
 let lastOpenedFirmware = null;
+let mainModel = null;
+let firmwareModelsReady = null;
+const symbolIndexCache = new WeakMap();
+const WORKSPACE_MAIN_PATH = "main.c";
 
 const SIDEBAR_META = {
   lessons: { title: "EXPLORER", subtitle: "LEARNING PATH" },
@@ -57,12 +61,59 @@ const SIDEBAR_META = {
 };
 
 function getCode() {
+  if (mainModel) return mainModel.getValue();
   return editor ? editor.getValue() : fallbackEditor.value;
 }
 
 function setCode(code) {
-  if (editor) editor.setValue(code);
-  else fallbackEditor.value = code;
+  if (mainModel) {
+    mainModel.setValue(code);
+    if (editor && editor.getModel() !== mainModel) {
+      editor.setModel(mainModel);
+      syncEditorChrome(mainModel);
+    }
+  } else if (editor) {
+    editor.setValue(code);
+  } else {
+    fallbackEditor.value = code;
+  }
+}
+
+function modelDisplayName(model) {
+  if (!model) return WORKSPACE_MAIN_PATH;
+  const path = model.uri.path.replace(/^\/+/, "");
+  if (model.uri.authority === "firmware" || path.startsWith("firmware/")) {
+    return path.startsWith("firmware/") ? path : `firmware/${path}`;
+  }
+  if (selectedLesson) return `${selectedLesson.id}.c`;
+  return WORKSPACE_MAIN_PATH;
+}
+
+function isFirmwareModel(model) {
+  if (!model) return false;
+  return model.uri.authority === "firmware" || model.uri.path.includes("/firmware/");
+}
+
+function syncEditorChrome(model = editor?.getModel()) {
+  if (!model) return;
+  const firmware = isFirmwareModel(model);
+  viewingReference = firmware;
+  fileName.textContent = modelDisplayName(model);
+  setEditorReadonly(firmware);
+  buildBtn.disabled = firmware;
+  if (firmware) {
+    flashBtn.disabled = true;
+    solutionFlashButton.disabled = true;
+    const relative = model.uri.path.replace(/^\/+/, "");
+    lastOpenedFirmware = relative;
+    firmwareList.querySelectorAll("button").forEach((button) => {
+      button.classList.toggle("selected", button.dataset.path === relative);
+    });
+  } else {
+    solutionFlashButton.disabled = !selectedLesson;
+    flashBtn.disabled = !lastBuildResult;
+    firmwareList.querySelectorAll("button").forEach((button) => button.classList.remove("selected"));
+  }
 }
 
 function setLog(message) {
@@ -164,6 +215,422 @@ function setupResizers() {
   });
 }
 
+function firmwareUri(filePath) {
+  return monaco.Uri.parse(`inmemory://firmware/${filePath}`);
+}
+
+function workspaceUri() {
+  return monaco.Uri.parse(`inmemory://workspace/${WORKSPACE_MAIN_PATH}`);
+}
+
+function positionToRange(lineNumber, column, length) {
+  return new monaco.Range(lineNumber, column, lineNumber, column + length);
+}
+
+function indexModelSymbols(model) {
+  const versionId = model.getVersionId();
+  const cached = symbolIndexCache.get(model);
+  if (cached && cached.versionId === versionId) return cached;
+
+  const text = model.getValue();
+  const lines = text.split(/\r?\n/);
+  const definitions = [];
+  const seen = new Set();
+
+  const pushDefinition = (name, lineNumber, column, kind) => {
+    if (!name || !/^[A-Za-z_]/.test(name)) return;
+    const key = `${name}@${lineNumber}@${column}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    definitions.push({
+      name,
+      kind,
+      range: positionToRange(lineNumber, column, name.length),
+    });
+  };
+
+  const definitionPatterns = [
+    { kind: "macro", regex: /^\s*#\s*define\s+([A-Za-z_]\w*)/ },
+    { kind: "include", regex: /^\s*#\s*include\s+"([^"]+)"/ },
+    {
+      kind: "typedef",
+      regex: /^\s*typedef\s+(?:struct|enum|union)\s+[A-Za-z_]?\w*\s*\{/,
+    },
+    {
+      kind: "typedef",
+      regex: /^\s*typedef\s+[\w\s\*]+\s+([A-Za-z_]\w*)\s*;/,
+    },
+    {
+      kind: "struct",
+      regex: /^\s*(?:typedef\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)\b/,
+    },
+    {
+      kind: "function",
+      regex:
+        /^\s*(?:__STATIC_INLINE|static|inline|extern|const|volatile|unsigned|signed|struct|enum|union|HAL_StatusTypeDef|GPIO_PinState|uint\d+_t|int\d+_t|void|int|char|short|long|float|double|bool|_Bool)\b[\w\s\*]*?\b([A-Za-z_]\w*)\s*\(/,
+    },
+    {
+      kind: "variable",
+      regex:
+        /^\s*(?:static|extern|const|volatile|unsigned|signed)?\s*(?:uint\d+_t|int\d+_t|GPIO_InitTypeDef|char|int|short|long|float|double|bool|_Bool|size_t)\s+\*?([A-Za-z_]\w*)\b/,
+    },
+  ];
+
+  lines.forEach((line, index) => {
+    const lineNumber = index + 1;
+
+    for (const pattern of definitionPatterns) {
+      const match = line.match(pattern.regex);
+      if (!match) continue;
+
+      if (pattern.kind === "include") {
+        pushDefinition(match[1], lineNumber, line.indexOf(match[1]) + 1, "include");
+        continue;
+      }
+
+      if (pattern.kind === "typedef" && !match[1]) {
+        // typedef struct { ... } Name; may close later — scan ahead for "} Name;"
+        for (let look = index; look < Math.min(lines.length, index + 80); look++) {
+          const endMatch = lines[look].match(/^\s*\}\s*([A-Za-z_]\w*)\s*;/);
+          if (endMatch) {
+            pushDefinition(endMatch[1], look + 1, lines[look].indexOf(endMatch[1]) + 1, "typedef");
+            break;
+          }
+        }
+        continue;
+      }
+
+      const name = match[1];
+      if (!name) continue;
+      // Skip control keywords accidentally captured
+      if (/^(if|for|while|switch|return|sizeof|typeof)$/.test(name)) continue;
+      pushDefinition(name, lineNumber, line.indexOf(name) + 1, pattern.kind);
+    }
+
+    // Enum / #define-style assignments inside macros already handled.
+    // Capture enumerator-like FOO = value inside enum blocks.
+    const enumMember = line.match(/^\s*([A-Za-z_]\w*)\s*=/);
+    if (enumMember && !line.includes("(") && !line.trim().startsWith("#")) {
+      pushDefinition(enumMember[1], lineNumber, line.indexOf(enumMember[1]) + 1, "enum");
+    }
+  });
+
+  const indexed = { versionId, definitions };
+  symbolIndexCache.set(model, indexed);
+  return indexed;
+}
+
+function findDefinitionsForSymbol(symbol) {
+  const results = [];
+  for (const model of monaco.editor.getModels()) {
+    const { definitions } = indexModelSymbols(model);
+    for (const def of definitions) {
+      if (def.name === symbol && def.kind !== "include") {
+        results.push({
+          uri: model.uri,
+          range: def.range,
+          kind: def.kind,
+        });
+      }
+    }
+  }
+  return results;
+}
+
+function findIncludeTarget(fileName) {
+  const normalized = fileName.replace(/^(\.\/)+/, "");
+  for (const model of monaco.editor.getModels()) {
+    const path = model.uri.path.replace(/^\/+/, "");
+    if (path === normalized || path.endsWith(`/${normalized}`) || path.endsWith(normalized)) {
+      return {
+        uri: model.uri,
+        range: new monaco.Range(1, 1, 1, 1),
+        kind: "file",
+      };
+    }
+  }
+  return null;
+}
+
+function findReferencesForSymbol(symbol) {
+  const results = [];
+  const wordRegex = new RegExp(`\\b${symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g");
+
+  for (const model of monaco.editor.getModels()) {
+    const lines = model.getValue().split(/\r?\n/);
+    lines.forEach((line, index) => {
+      wordRegex.lastIndex = 0;
+      let match;
+      while ((match = wordRegex.exec(line)) !== null) {
+        results.push({
+          uri: model.uri,
+          range: positionToRange(index + 1, match.index + 1, symbol.length),
+        });
+      }
+    });
+  }
+  return results;
+}
+
+function getDefinitionsAt(model, position) {
+  const line = model.getLineContent(position.lineNumber);
+  const includeMatch = line.match(/^\s*#\s*include\s+"([^"]+)"/);
+  if (includeMatch) {
+    const pathStart = line.indexOf('"') + 1;
+    const pathEnd = line.lastIndexOf('"');
+    if (position.column >= pathStart && position.column <= pathEnd + 1) {
+      const target = findIncludeTarget(includeMatch[1]);
+      return target ? [target] : [];
+    }
+  }
+
+  const word = model.getWordAtPosition(position);
+  if (!word) return [];
+  return findDefinitionsForSymbol(word.word);
+}
+
+function getSymbolAt(model, position) {
+  const line = model.getLineContent(position.lineNumber);
+  const includeMatch = line.match(/^\s*#\s*include\s+"([^"]+)"/);
+  if (includeMatch) {
+    const pathStart = line.indexOf('"') + 1;
+    const pathEnd = line.lastIndexOf('"');
+    if (position.column >= pathStart && position.column <= pathEnd + 1) {
+      return includeMatch[1];
+    }
+  }
+  return model.getWordAtPosition(position)?.word || null;
+}
+
+function openEditorLocation(location) {
+  if (!editor || !location) return false;
+  const model = monaco.editor.getModel(location.uri);
+  if (!model) return false;
+
+  if (editor.getModel() !== model) {
+    editor.setModel(model);
+  }
+  const range = location.range;
+  editor.setSelection(range);
+  editor.revealRangeInCenter(range);
+  editor.focus();
+  syncEditorChrome(model);
+  return true;
+}
+
+function showReferenceResults(symbol, references, title = "References") {
+  if (!references.length) {
+    setLog(`No ${title.toLowerCase()} found for '${symbol}'.`);
+    showBottomPanel("output");
+    return;
+  }
+
+  window.__studioReferences = references;
+
+  const lines = references.map((ref, index) => {
+    const model = monaco.editor.getModel(ref.uri);
+    const path = ref.uri.path.replace(/^\/+/, "");
+    const code = model ? model.getLineContent(ref.range.startLineNumber).trim() : "";
+    return `<button type="button" class="reference-hit" data-ref-index="${index}">` +
+      `<span class="reference-index">${index + 1}</span>` +
+      `<span class="reference-loc">${path}:${ref.range.startLineNumber}</span>` +
+      `<span class="reference-code">${escapeHtml(code)}</span>` +
+      `</button>`;
+  });
+
+  buildLog.innerHTML =
+    `<div class="reference-results">` +
+    `<div class="reference-title">${title} to <code>${escapeHtml(symbol)}</code> (${references.length})</div>` +
+    lines.join("") +
+    `</div>`;
+  showBottomPanel("output");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function registerCLanguageFeatures() {
+  const definitionProvider = {
+    provideDefinition(model, position) {
+      const defs = getDefinitionsAt(model, position);
+      return defs.length ? defs : null;
+    },
+  };
+
+  monaco.languages.registerDefinitionProvider("c", definitionProvider);
+  monaco.languages.registerDeclarationProvider("c", definitionProvider);
+
+  monaco.languages.registerReferenceProvider("c", {
+    provideReferences(model, position) {
+      const word = model.getWordAtPosition(position);
+      if (!word) return [];
+      return findReferencesForSymbol(word.word);
+    },
+  });
+
+  monaco.languages.registerHoverProvider("c", {
+    provideHover(model, position) {
+      const word = model.getWordAtPosition(position);
+      if (!word) return null;
+      const defs = findDefinitionsForSymbol(word.word);
+      if (!defs.length) return null;
+      const primary = defs[0];
+      const path = primary.uri.path.replace(/^\/+/, "");
+      const defModel = monaco.editor.getModel(primary.uri);
+      const snippet = defModel
+        ? defModel.getLineContent(primary.range.startLineNumber).trim()
+        : word.word;
+      return {
+        range: new monaco.Range(
+          position.lineNumber,
+          word.startColumn,
+          position.lineNumber,
+          word.endColumn
+        ),
+        contents: [
+          { value: `**${word.word}** · ${primary.kind || "symbol"}` },
+          { value: `\`${path}:${primary.range.startLineNumber}\`` },
+          { value: "```c\n" + snippet + "\n```" },
+        ],
+      };
+    },
+  });
+
+  monaco.editor.registerEditorOpener({
+    openCodeEditor(_source, resource, selection) {
+      const model = monaco.editor.getModel(resource);
+      if (!model || !editor) return false;
+      editor.setModel(model);
+      if (selection) {
+        const range = new monaco.Range(
+          selection.startLineNumber || selection.selectionStartLineNumber || 1,
+          selection.startColumn || selection.selectionStartColumn || 1,
+          selection.endLineNumber || selection.positionLineNumber || selection.startLineNumber || 1,
+          selection.endColumn || selection.positionColumn || selection.startColumn || 1
+        );
+        editor.setSelection(range);
+        editor.revealRangeInCenter(range);
+      }
+      syncEditorChrome(model);
+      return true;
+    },
+  });
+}
+
+function addNavigationContextActions() {
+  const goToDefinition = () => {
+    const model = editor.getModel();
+    const position = editor.getPosition();
+    if (!model || !position) return;
+    const defs = getDefinitionsAt(model, position);
+    const symbol = getSymbolAt(model, position) || "symbol";
+    if (!defs.length) {
+      setLog(`No definition found for '${symbol}'.`);
+      showBottomPanel("output");
+      return;
+    }
+    if (defs.length === 1) {
+      openEditorLocation(defs[0]);
+      return;
+    }
+    showReferenceResults(symbol, defs, "Definitions");
+    openEditorLocation(defs[0]);
+  };
+
+  const findReferences = () => {
+    const model = editor.getModel();
+    const position = editor.getPosition();
+    if (!model || !position) return;
+    const word = model.getWordAtPosition(position)?.word;
+    const symbol = word || getSymbolAt(model, position);
+    if (!symbol) {
+      setLog("No symbol under the cursor.");
+      showBottomPanel("output");
+      return;
+    }
+    showReferenceResults(symbol, findReferencesForSymbol(symbol), "References");
+  };
+
+  const actions = [
+    {
+      id: "studio.goToDefinition",
+      label: "Go to Definition",
+      keybindings: [monaco.KeyCode.F12],
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 1.1,
+      run: () => goToDefinition(),
+    },
+    {
+      id: "studio.goToDeclaration",
+      label: "Go to Declaration",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.F12],
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 1.2,
+      run: () => goToDefinition(),
+    },
+    {
+      id: "studio.peekDefinition",
+      label: "Peek Definition",
+      keybindings: [monaco.KeyMod.Alt | monaco.KeyCode.F12],
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 1.3,
+      run: () => {
+        const model = editor.getModel();
+        const position = editor.getPosition();
+        if (!model || !position) return;
+        const defs = getDefinitionsAt(model, position);
+        const symbol = getSymbolAt(model, position) || "symbol";
+        if (!defs.length) {
+          setLog(`No definition found for '${symbol}'.`);
+          showBottomPanel("output");
+          return;
+        }
+        showReferenceResults(symbol, defs, "Definitions");
+      },
+    },
+    {
+      id: "studio.findReferences",
+      label: "Find All References",
+      keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.F12],
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 1.4,
+      run: () => findReferences(),
+    },
+  ];
+
+  for (const action of actions) {
+    editor.addAction(action);
+  }
+}
+
+async function ensureFirmwareModels() {
+  if (!window.monaco) return;
+  if (firmwareModelsReady) return firmwareModelsReady;
+
+  firmwareModelsReady = (async () => {
+    const targets = firmwareFiles.filter((path) => /\.(h|c)$/i.test(path));
+    await Promise.all(
+      targets.map(async (path) => {
+        const uri = firmwareUri(path);
+        if (monaco.editor.getModel(uri)) return;
+        try {
+          const file = await fetchJson(`/api/firmware/${path}`);
+          monaco.editor.createModel(file.content, "c", uri);
+        } catch (error) {
+          console.warn(`Could not index firmware/${path}:`, error);
+        }
+      })
+    );
+  })();
+
+  return firmwareModelsReady;
+}
+
 function setupMonaco() {
   if (!window.require) return;
   window.MonacoEnvironment = {
@@ -173,10 +640,14 @@ function setupMonaco() {
       )}`,
   };
   window.require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs" } });
-  window.require(["vs/editor/editor.main"], () => {
+  window.require(["vs/editor/editor.main"], async () => {
+    monaco.languages.setLanguageConfiguration("c", {
+      wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
+    });
+
+    mainModel = monaco.editor.createModel(fallbackEditor.value, "c", workspaceUri());
     editor = monaco.editor.create(document.getElementById("monaco-editor"), {
-      value: fallbackEditor.value,
-      language: "c",
+      model: mainModel,
       theme: "vs-dark",
       automaticLayout: true,
       minimap: { enabled: false },
@@ -186,12 +657,41 @@ function setupMonaco() {
       scrollBeyondLastLine: false,
       tabSize: 4,
       wordWrap: "off",
+      contextmenu: true,
+      definitionLinkOpensInPeek: false,
+      gotoLocation: {
+        multiple: "goto",
+        multipleDefinitions: "peek",
+        multipleDeclarations: "peek",
+        multipleReferences: "peek",
+      },
       scrollbar: {
         verticalScrollbarSize: 10,
         horizontalScrollbarSize: 10,
       },
     });
     fallbackEditor.hidden = true;
+
+    registerCLanguageFeatures();
+    addNavigationContextActions();
+
+    editor.onDidChangeModel(() => {
+      syncEditorChrome(editor.getModel());
+    });
+
+    // Ctrl/Cmd + click → Go to Definition (CDN Monaco build has no built-in handler)
+    editor.onMouseDown((mouseEvent) => {
+      if (!(mouseEvent.event.ctrlKey || mouseEvent.event.metaKey)) return;
+      if (mouseEvent.target?.type !== monaco.editor.MouseTargetType.CONTENT_TEXT) return;
+      if (mouseEvent.target.position) {
+        editor.setPosition(mouseEvent.target.position);
+      }
+      editor.getAction("studio.goToDefinition")?.run();
+    });
+
+    if (firmwareFiles.length) {
+      await ensureFirmwareModels();
+    }
   });
 }
 
@@ -212,9 +712,12 @@ async function loadLesson(id) {
     lessonNumber.textContent = `LESSON ${lesson.title.split("·")[0].trim()}`;
     lessonSteps.innerHTML = lesson.steps.map((step) => `<li>${step}</li>`).join("");
     hintPanel.hidden = true;
+    if (editor && mainModel) {
+      editor.setModel(mainModel);
+    }
     setCode(lesson.starter_code);
+    syncEditorChrome(mainModel || editor?.getModel());
     setEditorReadonly(false);
-    fileName.textContent = `${lesson.id}.c`;
     flashBtn.disabled = true;
     buildBtn.disabled = false;
     solutionFlashButton.disabled = false;
@@ -224,6 +727,7 @@ async function loadLesson(id) {
     });
     firmwareList.querySelectorAll("button").forEach((button) => button.classList.remove("selected"));
     showSidebarPanel("lessons");
+    ensureFirmwareModels();
   } catch (error) {
     setLog(`Could not load this lesson. Try again in a moment. (${error.message})`);
   }
@@ -231,25 +735,36 @@ async function loadLesson(id) {
 
 async function loadFirmwareReference(filePath) {
   try {
-    const file = await fetchJson(`/api/firmware/${filePath}`);
+    await ensureFirmwareModels();
+    const uri = firmwareUri(filePath);
+    let model = monaco?.editor?.getModel(uri);
+    if (!model) {
+      const file = await fetchJson(`/api/firmware/${filePath}`);
+      model = monaco.editor.createModel(file.content, "c", uri);
+    }
+
     viewingReference = true;
     lastOpenedFirmware = filePath;
     lastBuildResult = null;
-    setCode(file.content);
-    setEditorReadonly(true);
-    fileName.textContent = `firmware/${file.path}`;
+
+    if (editor) {
+      editor.setModel(model);
+      editor.revealLineInCenter(1);
+      editor.setPosition({ lineNumber: 1, column: 1 });
+    } else {
+      const file = await fetchJson(`/api/firmware/${filePath}`);
+      setCode(file.content);
+    }
+
+    syncEditorChrome(model);
     lessonNumber.textContent = "FIRMWARE REFERENCE · READ-ONLY";
-    lessonTitle.textContent = file.path;
-    lessonSummary.textContent = "Vendor-style CMSIS device files for learning. Switch back to a lesson to edit practice code.";
-    lessonSteps.innerHTML = "<li>Browse firmware files in the left explorer.</li><li>Select a lesson to return to editable starter code.</li>";
+    lessonTitle.textContent = filePath;
+    lessonSummary.textContent =
+      "Vendor-style CMSIS / HAL / LL files. Right-click a symbol for Go to Definition or Find All References. Switch back to a lesson to edit practice code.";
+    lessonSteps.innerHTML =
+      "<li>Browse firmware files in the left explorer.</li><li>Right-click symbols to jump to declarations and references.</li><li>Select a lesson to return to editable starter code.</li>";
     hintPanel.hidden = true;
-    buildBtn.disabled = true;
-    flashBtn.disabled = true;
-    solutionFlashButton.disabled = true;
-    setLog(`Opened firmware/${file.path} (read-only).`);
-    firmwareList.querySelectorAll("button").forEach((button) => {
-      button.classList.toggle("selected", button.dataset.path === filePath);
-    });
+    setLog(`Opened firmware/${filePath} (read-only).`);
     lessonList.querySelectorAll("button").forEach((button) => button.classList.remove("selected"));
     showSidebarPanel("firmware");
   } catch (error) {
@@ -469,6 +984,14 @@ panelTabs.forEach((button) => {
   button.addEventListener("click", () => showBottomPanel(button.dataset.panel));
 });
 
+buildLog.addEventListener("click", (event) => {
+  const hit = event.target.closest(".reference-hit");
+  if (!hit) return;
+  const index = Number(hit.dataset.refIndex);
+  const target = (window.__studioReferences || [])[index];
+  if (target) openEditorLocation(target);
+});
+
 (async () => {
   setupMonaco();
   setupResizers();
@@ -496,6 +1019,17 @@ panelTabs.forEach((button) => {
       button.addEventListener("click", () => loadFirmwareReference(button.dataset.path));
     });
     await Promise.all([refreshPorts(), refreshBoardStatus()]);
+    if (window.monaco) {
+      await ensureFirmwareModels();
+    } else {
+      // Monaco loads async; index headers once the editor is ready.
+      const waitForMonaco = setInterval(async () => {
+        if (!window.monaco || !editor) return;
+        clearInterval(waitForMonaco);
+        await ensureFirmwareModels();
+      }, 100);
+      setTimeout(() => clearInterval(waitForMonaco), 15000);
+    }
     if (lessons.length) {
       await loadLesson(lessons[0].id);
     }

@@ -1,18 +1,16 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_spi.h"
 
-/*
- * SPI client (slave): another SPI master drives SCK/MOSI into this board.
- * Pins: PA5=SCK, PA6=MISO, PA7=MOSI (AF5).
- */
-static void spi1_init(void) {
-    // Enable GPIOA and SPI1 clocks.
-    // Configure PA5/PA6/PA7 as AF5.
-    // Leave MSTR clear for slave mode, keep SSM | SSI | SPE.
-}
+int main(void)
+{
+  /* SPI slave: an external master drives SCK/MOSI into this board. */
+  /* 1. Enable GPIOA and SPI1 clocks. */
+  /* 2. Configure PA5/PA6/PA7 as AF5. */
+  /* 3. Leave SPI1 in slave mode (LL_SPI_MODE_SLAVE) with soft NSS. */
+  /* 4. Read bytes when LL_SPI_IsActiveFlag_RXNE() is set. */
 
-int main(void) {
-    spi1_init();
-    while (1) {
-        // When RXNE is set, read the byte from SPI1->DR.
-    }
+  while (1)
+  {
+  }
 }

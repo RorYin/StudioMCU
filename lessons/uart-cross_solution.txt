@@ -1,41 +1,53 @@
-#include "stm32f446xe.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
 
 /*
  * External UART lesson:
  * Wire another UART device to PA9 (USART1_TX) and PA10 (USART1_RX).
  * Grounds must be shared.
  */
-static void uart1_init(void) {
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+static void USART1_Init(void)
+{
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
 
-    GPIOA->MODER &= ~(GPIO_MODER_MODE9_Msk | GPIO_MODER_MODE10_Msk);
-    GPIOA->MODER |= (GPIO_MODER_MODE9_ALTERNATE | GPIO_MODER_MODE10_ALTERNATE);
-    GPIOA->AFR[1] &= ~(GPIO_AFR_AFSEL9_Msk | GPIO_AFR_AFSEL10_Msk);
-    GPIOA->AFR[1] |= (GPIO_AFR_AFSEL9_AF7 | GPIO_AFR_AFSEL10_AF7);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_9, LL_GPIO_AF_7);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_10, LL_GPIO_AF_7);
 
-    USART1->BRR = 0x0683U; /* 9600 baud @ 16 MHz */
-    USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
+  LL_USART_SetBaudRate(USART1, 16000000U, 9600U);
+  LL_USART_SetTransferDirection(USART1, LL_USART_DIRECTION_TX_RX);
+  LL_USART_Enable(USART1);
 }
 
-static void uart1_write(char ch) {
-    while (!(USART1->SR & USART_SR_TXE)) { }
-    USART1->DR = (uint32_t)ch;
-}
-
-static void uart1_write_str(const char *text) {
-    while (*text) {
-        uart1_write(*text++);
+static void USART1_WriteString(const char *text)
+{
+  while (*text != '\0')
+  {
+    while (!LL_USART_IsActiveFlag_TXE(USART1))
+    {
     }
+    LL_USART_TransmitData8(USART1, (uint8_t)(*text));
+    text++;
+  }
 }
 
-int main(void) {
-    uart1_init();
-    uart1_write_str("USART1 ready\r\n");
-    while (1) {
-        if (USART1->SR & USART_SR_RXNE) {
-            char received = (char)(USART1->DR & 0xFFU);
-            uart1_write(received);
-        }
+int main(void)
+{
+  USART1_Init();
+  USART1_WriteString("USART1 ready\r\n");
+
+  while (1)
+  {
+    if (LL_USART_IsActiveFlag_RXNE(USART1))
+    {
+      uint8_t received = LL_USART_ReceiveData8(USART1);
+      while (!LL_USART_IsActiveFlag_TXE(USART1))
+      {
+      }
+      LL_USART_TransmitData8(USART1, received);
     }
+  }
 }
