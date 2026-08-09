@@ -1,0 +1,15 @@
+using "platforms/cpus/stm32f4.repl"
+
+// NUCLEO-F446RE teaching overlay on STM32F4 CPU model:
+// LD2 (green user LED) on PA5, USER button B1 on PC13 (active low).
+
+nvic:
+    systickFrequency: 16000000
+
+ld2: Miscellaneous.LED @ gpioPortA
+
+gpioPortA:
+    5 -> ld2@0
+
+userButton: Miscellaneous.Button @ gpioPortC
+    -> gpioPortC@13

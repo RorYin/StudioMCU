@@ -31,3 +31,8 @@ fix_lessons.py
 inspect_lessons.py
 install_toolchain.py
 test_import.py
+
+# Local Renode portable runtime (downloaded, not committed)
+tools/renode/**
+!tools/renode/README.md
+!tools/renode/.gitkeep

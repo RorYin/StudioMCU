@@ -77,8 +77,33 @@ body.is-resizing-row { cursor: row-resize; }
 
 .target {
   color: var(--muted);
-  margin-right: auto;
   white-space: nowrap;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  margin-left: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #1f1f1f;
+}
+
+.mode-button {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.mode-button.active {
+  color: #fff;
+  background: #0e639c;
 }
 
 .target-label,
@@ -283,6 +308,53 @@ body.is-resizing-row { cursor: row-resize; }
   text-overflow: ellipsis;
 }
 
+.editor-titlebar {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  background: #2d2d2d;
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-arrows {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-right: 1px solid var(--line);
+  background: #252526;
+}
+
+.nav-arrow-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: #cccccc;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nav-arrow-button:hover:not(:disabled) {
+  color: #ffffff;
+  background: #3a3a3a;
+}
+
+.nav-arrow-button:disabled {
+  color: #5a5a5a;
+  cursor: default;
+}
+
+.editor-titlebar .file-tab {
+  border-bottom: 0;
+}
+
 .c-icon { color: #519aba; font-weight: bold; }
 .tab-close { margin-left: auto; color: #aaa; font-size: 17px; }
 
@@ -389,6 +461,81 @@ body.is-resizing-row { cursor: row-resize; }
 }
 
 .tip-card p { margin: 5px 0 0; font-size: 12px; }
+
+.nucleo-board-card {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #1b1b1b;
+}
+
+.nucleo-board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sim-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #0e639c;
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.sim-badge.hardware {
+  background: #3a3d41;
+}
+
+.nucleo-board {
+  display: flex;
+  justify-content: center;
+}
+
+.nucleo-board svg {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+}
+
+.nucleo-board .pcb { stroke: #0f4a24; stroke-width: 2; }
+.nucleo-board .mount { fill: #d9d9d9; stroke: #666; stroke-width: 1; }
+.nucleo-board .stlink { fill: #222; stroke: #666; }
+.nucleo-board .mcu { fill: #0d0d0d; stroke: #8a8a8a; }
+.nucleo-board .header { fill: #ececec; stroke: #999; stroke-width: 0.5; }
+.nucleo-board .power-led { fill: #e62828; filter: drop-shadow(0 0 4px #ff5555); }
+.nucleo-board .board-label { fill: #f5f5f5; font-size: 11px; font-family: Segoe UI, sans-serif; }
+.nucleo-board .board-sub { fill: #d0d0d0; font-size: 9px; font-family: Segoe UI, sans-serif; }
+.nucleo-board .led { fill: #1f4d28; stroke: #8bd18b; stroke-width: 2; transition: fill 80ms linear; }
+.nucleo-board .led.on { fill: #3dff6a; filter: drop-shadow(0 0 10px #3dff6a); }
+.nucleo-board .user-button { fill: #2f6fed; stroke: #9ecbff; stroke-width: 2; cursor: pointer; }
+.nucleo-board .user-button:active,
+.nucleo-board .user-button.pressed { fill: #1b4fbf; }
+
+.sim-note {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sim-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.serial-input {
+  flex: 1;
+  min-width: 140px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  background: #1e1e1e;
+}
 
 .editor-stack {
   min-height: 0;

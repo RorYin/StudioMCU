@@ -1,0 +1,8 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pyserial>=3.5
+
+# Renode is not on PyPI. Keep a portable copy in this repo folder:
+#   python tools/install_renode.py
+# That installs into tools/renode/ (gitignored binaries).
+# Or set RENODE_PATH / use a system install.

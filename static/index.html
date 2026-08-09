@@ -11,6 +11,10 @@
     <header class="topbar">
       <div class="brand"><span class="brand-mark">&lt;/&gt;</span><span>StudioMCU</span></div>
       <div class="target"><span class="target-label">TARGET</span> NUCLEO-F446RE</div>
+      <div class="mode-toggle" role="group" aria-label="Run mode">
+        <button type="button" id="mode-simulation" class="mode-button active" data-mode="simulation">Simulation</button>
+        <button type="button" id="mode-hardware" class="mode-button" data-mode="hardware">Hardware</button>
+      </div>
       <div class="board-status" role="status">
         <span id="board-status-dot" class="status-dot unknown"></span>
         <span id="board-status">Checking ST-Link...</span>
@@ -73,10 +77,15 @@
       <div id="sidebar-resizer" class="resize-handle vertical" role="separator" aria-orientation="vertical" aria-label="Resize lesson explorer"></div>
 
       <section class="studio">
-        <div class="file-tab">
-          <span class="c-icon">C</span>
-          <span id="file-name">welcome.c</span>
-          <span class="tab-close" aria-hidden="true">×</span>
+        <div class="editor-titlebar">
+          <div class="nav-arrows" role="group" aria-label="Editor navigation">
+            <button id="nav-back" class="nav-arrow-button" type="button" title="Go Back (Right Alt+←)" aria-label="Go Back" disabled>←</button>
+          </div>
+          <div class="file-tab">
+            <span class="c-icon">C</span>
+            <span id="file-name">welcome.c</span>
+            <span class="tab-close" aria-hidden="true">×</span>
+          </div>
         </div>
 
         <div class="lesson-toolbar">
@@ -90,8 +99,8 @@
             <button id="hint-btn" class="button secondary">Hint</button>
             <button id="solution-btn" class="button secondary">Show solution</button>
             <button id="build-btn" class="button primary">▶ Build</button>
-            <button id="flash-btn" class="button success" disabled>⚡ Flash</button>
-            <button id="solution-flash-btn" class="button solution" disabled>Build &amp; flash solution</button>
+            <button id="flash-btn" class="button success" disabled>▶ Run simulation</button>
+            <button id="solution-flash-btn" class="button solution" disabled>Build &amp; run solution</button>
           </div>
         </div>
 
@@ -100,9 +109,50 @@
             <h2>Mission</h2>
             <ol id="lesson-steps"><li>Select a lesson from the learning path.</li></ol>
             <div id="hint-panel" class="hint-panel" hidden></div>
+            <div class="nucleo-board-card">
+              <div class="nucleo-board-header">
+                <strong>NUCLEO-F446RE</strong>
+                <span id="sim-badge" class="sim-badge">SIM</span>
+              </div>
+              <div id="nucleo-board" class="nucleo-board" aria-label="Virtual NUCLEO-F446RE board">
+                <svg viewBox="0 0 280 420" role="img" aria-label="Nucleo board illustration">
+                  <defs>
+                    <linearGradient id="pcbGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#248a45"/>
+                      <stop offset="100%" stop-color="#176533"/>
+                    </linearGradient>
+                  </defs>
+                  <rect class="pcb" x="18" y="18" width="244" height="384" rx="12" fill="url(#pcbGrad)"></rect>
+                  <circle class="mount" cx="34" cy="34" r="5"></circle>
+                  <circle class="mount" cx="246" cy="34" r="5"></circle>
+                  <circle class="mount" cx="34" cy="386" r="5"></circle>
+                  <circle class="mount" cx="246" cy="386" r="5"></circle>
+                  <rect class="stlink" x="40" y="40" width="200" height="64" rx="6"></rect>
+                  <text x="140" y="66" text-anchor="middle" class="board-label">ST-LINK/V2-1</text>
+                  <text x="140" y="84" text-anchor="middle" class="board-sub">USB · VCP · SWD</text>
+                  <circle class="power-led" cx="58" cy="120" r="5"></circle>
+                  <text x="74" y="124" class="board-sub">LD1</text>
+                  <rect class="mcu" x="95" y="168" width="90" height="90" rx="6"></rect>
+                  <text x="140" y="218" text-anchor="middle" class="board-label">STM32F446RE</text>
+                  <circle id="board-ld2" class="led" cx="210" cy="148" r="11"></circle>
+                  <text x="210" y="174" text-anchor="middle" class="board-sub">LD2 · PA5</text>
+                  <circle id="board-button" class="user-button" cx="70" cy="148" r="15"></circle>
+                  <text x="70" y="178" text-anchor="middle" class="board-sub">B1 · PC13</text>
+                  <rect class="header" x="34" y="286" width="16" height="96" rx="2"></rect>
+                  <rect class="header" x="230" y="286" width="16" height="96" rx="2"></rect>
+                  <text x="140" y="320" text-anchor="middle" class="board-sub">CN7 / CN10 Morpho</text>
+                  <text x="140" y="350" text-anchor="middle" class="board-label">NUCLEO-F446RE</text>
+                </svg>
+              </div>
+              <p id="sim-note" class="sim-note">Build, then run simulation to see LD2 / USART2 activity.</p>
+              <div class="sim-actions">
+                <button id="sim-button-tap" class="button compact secondary" type="button">Tap user button</button>
+                <button id="sim-stop" class="button compact secondary" type="button">Stop simulation</button>
+              </div>
+            </div>
             <div class="tip-card">
               <strong>How it works</strong>
-              <p>Write code, build it, then flash the binary through the connected ST-Link.</p>
+              <p>Choose <em>Simulation</em> (Renode) or <em>Hardware</em> (ST-Link). Build firmware, then run it on the selected target.</p>
             </div>
           </aside>
           <div id="instruction-resizer" class="resize-handle vertical" role="separator" aria-orientation="vertical" aria-label="Resize lesson instructions"></div>
@@ -128,6 +178,8 @@
               <button id="refresh-ports" class="button compact secondary" type="button">Refresh ports</button>
               <button id="connect-serial" class="button compact secondary" type="button">Connect</button>
               <button id="disconnect-serial" class="button compact secondary" type="button">Disconnect</button>
+              <input id="serial-input" class="serial-input" type="text" placeholder="Type to USART2 (simulation echo)…" />
+              <button id="serial-send" class="button compact secondary" type="button">Send</button>
             </div>
             <pre id="serial-output">Serial monitor is ready.</pre>
           </div>

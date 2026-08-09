@@ -1,0 +1,24 @@
+:name: StudioMCU NUCLEO-F446RE
+:description: Headless Renode simulation for StudioMCU lessons (LD2, B1, USART2).
+
+using sysbus
+
+$bin?=@firmware.elf
+$repl?=@nucleo_f446re.repl
+$uartPort?=29124
+
+# Renode 1.16+ monitor uses `mach create` (no name arg).
+mach create
+machine LoadPlatformDescription $repl
+
+# USART2 → TCP terminal (ST-Link VCP equivalent)
+emulation CreateServerSocketTerminal $uartPort "usart2_term" false
+connector Connect sysbus.usart2 usart2_term
+
+macro reset
+"""
+    sysbus LoadELF $bin
+"""
+
+runMacro $reset
+start

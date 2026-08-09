@@ -112,7 +112,7 @@ def build_firmware(code: str, build_dir: Path) -> dict:
     if result.returncode != 0:
         return {"success": False, "log": log}
 
-    return {"success": True, "log": log, "firmware_path": str(bin_path)}
+    return {"success": True, "log": log, "firmware_path": str(bin_path), "elf_path": str(elf_path)}
 
 
 def flash_firmware(binary_path: Path, tool: str = "st-flash") -> dict:

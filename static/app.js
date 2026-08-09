@@ -11,6 +11,16 @@ const solutionFlashButton = document.getElementById("solution-flash-btn");
 const hintPanel = document.getElementById("hint-panel");
 const buildBtn = document.getElementById("build-btn");
 const flashBtn = document.getElementById("flash-btn");
+const modeSimulationBtn = document.getElementById("mode-simulation");
+const modeHardwareBtn = document.getElementById("mode-hardware");
+const simBadge = document.getElementById("sim-badge");
+const simNote = document.getElementById("sim-note");
+const boardLd2 = document.getElementById("board-ld2");
+const boardButton = document.getElementById("board-button");
+const simButtonTap = document.getElementById("sim-button-tap");
+const simStopBtn = document.getElementById("sim-stop");
+const serialInput = document.getElementById("serial-input");
+const serialSendBtn = document.getElementById("serial-send");
 const fallbackEditor = document.getElementById("code-editor");
 const buildLog = document.getElementById("build-log");
 const serialPortSelect = document.getElementById("serial-port");
@@ -26,6 +36,7 @@ const clearBuildsButton = document.getElementById("clear-builds");
 const clearBuildsStatus = document.getElementById("clear-builds-status");
 const statusMessage = document.getElementById("status-message");
 const fileName = document.getElementById("file-name");
+const navBackButton = document.getElementById("nav-back");
 const sidebarTitle = document.getElementById("sidebar-title");
 const sidebarSubtitle = document.getElementById("sidebar-subtitle");
 const workspace = document.querySelector(".workspace");
@@ -44,6 +55,8 @@ const problemsLog = problemsPanel.querySelector("pre");
 let selectedLesson = null;
 let lastBuildResult = null;
 let serialPolling = null;
+let simPolling = null;
+let runMode = "simulation";
 let editor = null;
 let viewingReference = false;
 let firmwareFiles = [];
@@ -53,6 +66,9 @@ let mainModel = null;
 let firmwareModelsReady = null;
 const symbolIndexCache = new WeakMap();
 const WORKSPACE_MAIN_PATH = "main.c";
+const navHistory = [];
+let suppressNavHistory = false;
+let rightAltHeld = false;
 
 const SIDEBAR_META = {
   lessons: { title: "EXPLORER", subtitle: "LEARNING PATH" },
@@ -113,7 +129,19 @@ function syncEditorChrome(model = editor?.getModel()) {
     solutionFlashButton.disabled = !selectedLesson;
     flashBtn.disabled = !lastBuildResult;
     firmwareList.querySelectorAll("button").forEach((button) => button.classList.remove("selected"));
+    if (selectedLesson && /FIRMWARE/i.test(lessonNumber.textContent || "")) {
+      lessonNumber.textContent = `LESSON ${selectedLesson.title.split("·")[0].trim()}`;
+      lessonTitle.textContent = selectedLesson.title;
+      lessonSummary.textContent = selectedLesson.summary;
+      lessonSteps.innerHTML = selectedLesson.steps.map((step) => `<li>${step}</li>`).join("");
+      hintPanel.hidden = true;
+      lessonList.querySelectorAll("button").forEach((button) => {
+        button.classList.toggle("selected", button.dataset.id === selectedLesson.id);
+      });
+      showSidebarPanel("lessons");
+    }
   }
+  updateNavButtons();
 }
 
 function setLog(message) {
@@ -402,10 +430,111 @@ function getSymbolAt(model, position) {
   return model.getWordAtPosition(position)?.word || null;
 }
 
-function openEditorLocation(location) {
+function captureEditorLocation() {
+  if (!editor || !window.monaco) return null;
+  const model = editor.getModel();
+  const position = editor.getPosition();
+  if (!model || !position) return null;
+  return {
+    uri: model.uri,
+    range: new monaco.Range(
+      position.lineNumber,
+      position.column,
+      position.lineNumber,
+      position.column
+    ),
+  };
+}
+
+function sameEditorLocation(a, b) {
+  if (!a || !b) return false;
+  return (
+    a.uri.toString() === b.uri.toString() &&
+    a.range.startLineNumber === b.range.startLineNumber &&
+    a.range.startColumn === b.range.startColumn
+  );
+}
+
+function updateNavButtons() {
+  if (!navBackButton) return;
+  navBackButton.disabled = navHistory.length === 0;
+  navBackButton.title =
+    navHistory.length === 0
+      ? "Go Back (Right Alt+←)"
+      : `Go Back (Right Alt+←) · ${navHistory.length} location${navHistory.length === 1 ? "" : "s"}`;
+}
+
+function pushNavHistory(location = captureEditorLocation()) {
+  if (suppressNavHistory || !location) return;
+  const last = navHistory[navHistory.length - 1];
+  if (sameEditorLocation(last, location)) return;
+  navHistory.push(location);
+  if (navHistory.length > 100) navHistory.shift();
+  updateNavButtons();
+}
+
+function clearNavHistory() {
+  navHistory.length = 0;
+  updateNavButtons();
+}
+
+function isRightAltGoBackShortcut(event) {
+  if (event.key !== "ArrowLeft" && event.code !== "ArrowLeft") return false;
+  if (event.shiftKey || event.metaKey) return false;
+  // Right-side Alt only (AltGr on many keyboards, AltRight on others).
+  if (event.getModifierState && event.getModifierState("AltGraph")) return true;
+  if (rightAltHeld) return true;
+  return false;
+}
+
+function noteRightAltKey(event, isDown) {
+  // Cover US Right Alt (AltRight) and international AltGr (AltGraph).
+  if (
+    event.code === "AltRight" ||
+    event.key === "AltGraph" ||
+    (event.key === "Alt" && event.location === 2)
+  ) {
+    rightAltHeld = isDown;
+  }
+}
+
+let goBackShortcutLock = false;
+
+function handleGoBackShortcut(event) {
+  noteRightAltKey(event, true);
+  if (!isRightAltGoBackShortcut(event)) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  if (goBackShortcutLock) return true;
+  goBackShortcutLock = true;
+  queueMicrotask(() => {
+    goBackShortcutLock = false;
+  });
+  goBack();
+  return true;
+}
+
+function goBack() {
+  if (!navHistory.length) return false;
+  const location = navHistory.pop();
+  updateNavButtons();
+  suppressNavHistory = true;
+  try {
+    return openEditorLocation(location, { recordHistory: false });
+  } finally {
+    suppressNavHistory = false;
+  }
+}
+
+function openEditorLocation(location, options = {}) {
+  const recordHistory = options.recordHistory !== false;
   if (!editor || !location) return false;
   const model = monaco.editor.getModel(location.uri);
   if (!model) return false;
+
+  if (recordHistory) {
+    pushNavHistory();
+  }
 
   if (editor.getModel() !== model) {
     editor.setModel(model);
@@ -505,19 +634,15 @@ function registerCLanguageFeatures() {
     openCodeEditor(_source, resource, selection) {
       const model = monaco.editor.getModel(resource);
       if (!model || !editor) return false;
-      editor.setModel(model);
-      if (selection) {
-        const range = new monaco.Range(
-          selection.startLineNumber || selection.selectionStartLineNumber || 1,
-          selection.startColumn || selection.selectionStartColumn || 1,
-          selection.endLineNumber || selection.positionLineNumber || selection.startLineNumber || 1,
-          selection.endColumn || selection.positionColumn || selection.startColumn || 1
-        );
-        editor.setSelection(range);
-        editor.revealRangeInCenter(range);
-      }
-      syncEditorChrome(model);
-      return true;
+      const range = selection
+        ? new monaco.Range(
+            selection.startLineNumber || selection.selectionStartLineNumber || 1,
+            selection.startColumn || selection.selectionStartColumn || 1,
+            selection.endLineNumber || selection.positionLineNumber || selection.startLineNumber || 1,
+            selection.endColumn || selection.positionColumn || selection.startColumn || 1
+          )
+        : new monaco.Range(1, 1, 1, 1);
+      return openEditorLocation({ uri: resource, range });
     },
   });
 }
@@ -601,11 +726,27 @@ function addNavigationContextActions() {
       contextMenuOrder: 1.4,
       run: () => findReferences(),
     },
+    {
+      id: "studio.goBack",
+      label: "Go Back",
+      // Handled globally below so Right Alt+← works even when Monaco isn't focused,
+      // and we avoid double-pop from both Monaco and window listeners.
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 1.5,
+      run: () => {
+        if (!goBack()) {
+          setLog("No previous editor location to go back to.");
+          showBottomPanel("output");
+        }
+      },
+    },
   ];
 
   for (const action of actions) {
     editor.addAction(action);
   }
+
+  updateNavButtons();
 }
 
 async function ensureFirmwareModels() {
@@ -689,6 +830,37 @@ function setupMonaco() {
       editor.getAction("studio.goToDefinition")?.run();
     });
 
+    // Right Alt / AltGr + ← go back.
+    // Use capture + Monaco onKeyDown so the editor cannot swallow the shortcut.
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        handleGoBackShortcut(event);
+      },
+      true
+    );
+
+    window.addEventListener(
+      "keyup",
+      (event) => {
+        noteRightAltKey(event, false);
+      },
+      true
+    );
+
+    window.addEventListener("blur", () => {
+      rightAltHeld = false;
+    });
+
+    editor.onKeyDown((keyEvent) => {
+      if (handleGoBackShortcut(keyEvent.browserEvent)) {
+        keyEvent.preventDefault();
+        keyEvent.stopPropagation();
+      }
+    });
+
+    updateNavButtons();
+
     if (firmwareFiles.length) {
       await ensureFirmwareModels();
     }
@@ -716,6 +888,7 @@ async function loadLesson(id) {
       editor.setModel(mainModel);
     }
     setCode(lesson.starter_code);
+    clearNavHistory();
     syncEditorChrome(mainModel || editor?.getModel());
     setEditorReadonly(false);
     flashBtn.disabled = true;
@@ -748,6 +921,7 @@ async function loadFirmwareReference(filePath) {
     lastBuildResult = null;
 
     if (editor) {
+      pushNavHistory();
       editor.setModel(model);
       editor.revealLineInCenter(1);
       editor.setPosition({ lineNumber: 1, column: 1 });
@@ -788,6 +962,141 @@ async function openBoardPanel() {
   await refreshBoardStatus();
 }
 
+function updateModeUi() {
+  const isSim = runMode === "simulation";
+  modeSimulationBtn?.classList.toggle("active", isSim);
+  modeHardwareBtn?.classList.toggle("active", !isSim);
+  if (simBadge) {
+    simBadge.textContent = isSim ? "SIM" : "HW";
+    simBadge.classList.toggle("hardware", !isSim);
+  }
+  flashBtn.textContent = isSim ? "▶ Run simulation" : "⚡ Flash";
+  solutionFlashButton.textContent = isSim ? "Build & run solution" : "Build & flash solution";
+  if (simButtonTap) simButtonTap.disabled = !isSim;
+  if (simStopBtn) simStopBtn.disabled = !isSim;
+  if (serialInput) serialInput.disabled = !isSim;
+  if (serialSendBtn) serialSendBtn.disabled = !isSim;
+}
+
+function setBoardLed(on) {
+  boardLd2?.classList.toggle("on", Boolean(on));
+}
+
+async function setRunMode(mode) {
+  const result = await (
+    await fetch("/api/mode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+    })
+  ).json();
+  runMode = result.mode || mode;
+  updateModeUi();
+  setLog(result.message || `Switched to ${runMode} mode.`);
+  await Promise.all([refreshPorts(), refreshBoardStatus()]);
+  if (runMode === "simulation") {
+    startSimPolling();
+  } else {
+    stopSimPolling();
+    setBoardLed(false);
+  }
+}
+
+function startSimPolling() {
+  stopSimPolling();
+  simPolling = setInterval(refreshSimulationStatus, 250);
+}
+
+function stopSimPolling() {
+  if (simPolling) {
+    clearInterval(simPolling);
+    simPolling = null;
+  }
+}
+
+async function refreshSimulationStatus() {
+  if (runMode !== "simulation") return;
+  try {
+    const status = await (await fetch("/api/simulate/status")).json();
+    setBoardLed(status.led_on);
+    if (simNote && status.capabilities?.note) {
+      simNote.textContent = status.running
+        ? status.capabilities.note
+        : "Build, then run simulation to see LD2 / USART2 activity.";
+    }
+  } catch {
+    // ignore transient poll errors
+  }
+}
+
+async function runSimulation(result = lastBuildResult) {
+  if (!result?.elf_path) {
+    setLog("Build an ELF first, then run simulation.");
+    return;
+  }
+  flashBtn.disabled = true;
+  setLog("Starting Renode simulation on virtual NUCLEO-F446RE…");
+  showBottomPanel("output");
+  try {
+    const response = await (
+      await fetch("/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          elf_path: result.elf_path,
+          lesson_id: selectedLesson?.id,
+        }),
+      })
+    ).json();
+    setLog(response.log || (response.success ? "Simulation started." : "Simulation failed."));
+    if (response.success) {
+      startSimPolling();
+      showBottomPanel("serial");
+      serialOutput.textContent = "Renode USART2 connected.\n";
+      await refreshBoardStatus();
+      await refreshSimulationStatus();
+    }
+  } catch (error) {
+    setLog(`Simulation request failed: ${error.message}`);
+  } finally {
+    flashBtn.disabled = !lastBuildResult;
+  }
+}
+
+async function stopSimulation() {
+  const result = await (await fetch("/api/simulate/stop", { method: "POST" })).json();
+  setBoardLed(false);
+  setLog(result.message || "Simulation stopped.");
+  await refreshBoardStatus();
+}
+
+async function tapSimButton() {
+  boardButton?.classList.add("pressed");
+  const result = await (
+    await fetch("/api/simulate/button", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "tap" }),
+    })
+  ).json();
+  setTimeout(() => boardButton?.classList.remove("pressed"), 120);
+  if (result.led_on !== undefined) setBoardLed(result.led_on);
+  if (!result.success) setLog(result.message || "Button tap failed.");
+}
+
+async function sendSerialInput() {
+  if (runMode !== "simulation") return;
+  const text = serialInput?.value || "";
+  if (!text) return;
+  await fetch("/api/simulate/uart/write", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: text.endsWith("\n") ? text : `${text}\n` }),
+  });
+  serialInput.value = "";
+  showBottomPanel("serial");
+}
+
 async function refreshPorts() {
   const ports = await (await fetch("/api/serial/ports")).json();
   serialPortSelect.innerHTML = ports.length
@@ -798,10 +1107,18 @@ async function refreshPorts() {
 async function refreshBoardStatus() {
   try {
     const status = await (await fetch("/api/board/status")).json();
+    if (status.mode) runMode = status.mode;
+    updateModeUi();
     boardStatus.textContent = status.message;
     statusMessage.textContent = status.message;
     boardStatusDot.className = `status-dot ${status.connected ? "connected" : "disconnected"}`;
-    flashBtn.title = status.connected ? "Flash the latest successful build" : status.message;
+    if (status.led_on !== undefined) setBoardLed(status.led_on);
+    flashBtn.title =
+      runMode === "simulation"
+        ? "Run the latest build in Renode"
+        : status.connected
+          ? "Flash the latest successful build"
+          : status.message;
     if (boardPanelStatus) {
       boardPanelStatus.innerHTML = `<strong>Link:</strong> ${status.message}`;
     }
@@ -848,6 +1165,10 @@ async function buildCode(code = getCode(), flashAfter = false) {
 }
 
 async function flashCode(result = lastBuildResult) {
+  if (runMode === "simulation") {
+    await runSimulation(result);
+    return;
+  }
   if (!result?.firmware_path) return;
   const status = await (await fetch("/api/board/status")).json();
   if (!status.connected) {
@@ -935,6 +1256,14 @@ async function readSerialOutput() {
 }
 
 loadLessonButton.addEventListener("click", () => selectedLesson && loadLesson(selectedLesson.id));
+if (navBackButton) {
+  navBackButton.addEventListener("click", () => {
+    if (!goBack()) {
+      setLog("No previous editor location to go back to.");
+      showBottomPanel("output");
+    }
+  });
+}
 hintButton.addEventListener("click", () => {
   if (!selectedLesson || viewingReference) return;
   hintPanel.textContent = selectedLesson.hint;
@@ -953,6 +1282,15 @@ solutionFlashButton.addEventListener("click", () => {
   buildCode(selectedLesson.solution_code, true);
 });
 refreshBoardStatusButton.addEventListener("click", refreshBoardStatus);
+modeSimulationBtn?.addEventListener("click", () => setRunMode("simulation"));
+modeHardwareBtn?.addEventListener("click", () => setRunMode("hardware"));
+simButtonTap?.addEventListener("click", tapSimButton);
+boardButton?.addEventListener("click", tapSimButton);
+simStopBtn?.addEventListener("click", stopSimulation);
+serialSendBtn?.addEventListener("click", sendSerialInput);
+serialInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") sendSerialInput();
+});
 if (clearBuildsButton) {
   clearBuildsButton.addEventListener("click", clearBuilds);
 }
@@ -1019,6 +1357,14 @@ buildLog.addEventListener("click", (event) => {
       button.addEventListener("click", () => loadFirmwareReference(button.dataset.path));
     });
     await Promise.all([refreshPorts(), refreshBoardStatus()]);
+    try {
+      const modeInfo = await fetchJson("/api/mode");
+      if (modeInfo.mode) runMode = modeInfo.mode;
+    } catch {
+      // keep default simulation mode
+    }
+    updateModeUi();
+    if (runMode === "simulation") startSimPolling();
     if (window.monaco) {
       await ensureFirmwareModels();
     } else {
