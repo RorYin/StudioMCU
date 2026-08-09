@@ -65,7 +65,8 @@ def main() -> int:
     _stage_package(RELEASE_DIR, built_exe)
 
     print(f"\nDone: {RELEASE_DIR / 'StudioMCU.exe'}")
-    print(f"Tracked package folder: {RELEASE_DIR}")
+    print(f"Local package folder: {RELEASE_DIR}")
+    print("Publish tip: commit/push this folder on the `release` git branch only.")
     return 0
 
 

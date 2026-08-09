@@ -40,9 +40,8 @@ tools/renode/**
 # Cached ST datasheet PDFs (downloaded on first open)
 docs/datasheet_cache/
 
-# PyInstaller intermediates (portable package lives in release/)
+# PyInstaller intermediates + local portable stage (shipped on `release` branch)
 build/
 dist/
+release/
 /StudioMCU.exe
-!release/
-!release/**

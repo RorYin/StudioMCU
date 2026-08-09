@@ -156,19 +156,20 @@ pip install pyinstaller pillow
 python tools/build_exe.py
 ```
 
-Output folder:
+Output folder (local):
 
 ```
-dist/StudioMCU/
-  StudioMCU.exe      ← double-click to run (opens the browser)
-  lessons/           ← edit anytime
-  static/            ← edit anytime (includes logo)
+release/StudioMCU/
+  StudioMCU.exe
+  lessons/
+  static/
   firmware/
   simulation/
   README_RUNTIME.txt
 ```
 
-Copy the whole `dist/StudioMCU/` folder to another PC. Keep `lessons/` and `static/` next to the exe.
+The portable `.exe` package is published on the **`release`** branch:  
+https://github.com/RorYin/StudioMCU/tree/release/release/StudioMCU
 
 Logo assets: `static/img/logo.png` (web) and `assets/studiomcu.ico` (exe icon).
 
