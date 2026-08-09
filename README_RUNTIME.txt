@@ -11,6 +11,7 @@ Included beside this exe:
   toolchain/    ARM GCC + st-flash (for Build / Flash)
 
 Optional:
-  tools/renode/   portable Renode for Simulation mode
+  tools/renode/   portable Renode for Simulation mode 
+  (Install Renode https://github.com/renode/renode/releases/download/v1.16.1/renode-1.16.1.setup.exe for simulation mode to work)
 
 Developed By RorYin
