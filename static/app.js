@@ -44,6 +44,21 @@ const studio = document.querySelector(".studio");
 const lessonContent = document.querySelector(".lesson-content");
 const lessonsPanel = document.getElementById("lessons-panel");
 const firmwarePanel = document.getElementById("firmware-panel");
+const datasheetsPanel = document.getElementById("datasheets-panel");
+const datasheetList = document.getElementById("datasheet-list");
+const openAllDatasheetsBtn = document.getElementById("open-all-datasheets");
+const editorTabs = document.getElementById("editor-tabs");
+const pdfViewer = document.getElementById("pdf-viewer");
+const pdfPages = document.getElementById("pdf-pages");
+const pdfOutline = document.getElementById("pdf-outline");
+const pdfPageLabel = document.getElementById("pdf-page-label");
+const pdfStatus = document.getElementById("pdf-status");
+const pdfPrevBtn = document.getElementById("pdf-prev");
+const pdfNextBtn = document.getElementById("pdf-next");
+const pdfZoomInBtn = document.getElementById("pdf-zoom-in");
+const pdfZoomOutBtn = document.getElementById("pdf-zoom-out");
+const lessonToolbar = document.getElementById("lesson-toolbar");
+const instructionPanel = document.getElementById("instruction-panel");
 const boardPanel = document.getElementById("board-panel");
 const activityButtons = document.querySelectorAll(".activity-bar .activity-button");
 const panelTabs = document.querySelectorAll(".panel-tab");
@@ -60,6 +75,19 @@ let runMode = "simulation";
 let editor = null;
 let viewingReference = false;
 let firmwareFiles = [];
+let datasheetDocs = [];
+let openPdfTabs = [];
+let activeEditorTab = "code";
+let pdfjsReady = null;
+let activePdfDoc = null;
+let activePdfId = null;
+let pdfPageNumber = 1;
+let pdfScale = 1.1;
+let pdfFitWidth = true;
+let pdfRenderToken = 0;
+let pdfPageObserver = null;
+let pdfScrollBound = false;
+let pdfPageHeights = [];
 let activeSidebar = "lessons";
 let lastOpenedFirmware = null;
 let mainModel = null;
@@ -73,6 +101,7 @@ let rightAltHeld = false;
 const SIDEBAR_META = {
   lessons: { title: "EXPLORER", subtitle: "LEARNING PATH" },
   firmware: { title: "EXPLORER", subtitle: "FIRMWARE" },
+  datasheets: { title: "EXPLORER", subtitle: "DATASHEETS" },
   board: { title: "EXPLORER", subtitle: "BOARD" },
 };
 
@@ -115,6 +144,7 @@ function syncEditorChrome(model = editor?.getModel()) {
   const firmware = isFirmwareModel(model);
   viewingReference = firmware;
   fileName.textContent = modelDisplayName(model);
+  if (activeEditorTab === "code") renderEditorTabs();
   setEditorReadonly(firmware);
   buildBtn.disabled = firmware;
   if (firmware) {
@@ -161,6 +191,7 @@ function showSidebarPanel(panel) {
   activeSidebar = panel;
   lessonsPanel.classList.toggle("hidden", panel !== "lessons");
   firmwarePanel.classList.toggle("hidden", panel !== "firmware");
+  datasheetsPanel?.classList.toggle("hidden", panel !== "datasheets");
   boardPanel.classList.toggle("hidden", panel !== "board");
   activityButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.panel === panel);
@@ -962,6 +993,415 @@ async function openBoardPanel() {
   await refreshBoardStatus();
 }
 
+function renderDatasheets(payload) {
+  if (!datasheetList) return;
+  datasheetDocs = payload.documents || [];
+  const categories = payload.categories || {};
+  const order = ["MCU", "Board", "Software"];
+  const keys = [
+    ...order.filter((key) => categories[key]?.length),
+    ...Object.keys(categories).filter((key) => !order.includes(key)),
+  ];
+  datasheetList.innerHTML = keys
+    .map((category) => {
+      const items = categories[category] || [];
+      return `
+        <section class="datasheet-group">
+          <h3>${category}</h3>
+          <ul>
+            ${items
+              .map(
+                (doc) => `
+              <li>
+                <button type="button" class="datasheet-link" data-id="${doc.id}">
+                  <span class="datasheet-doc">${doc.doc || "PDF"}</span>
+                  <span class="datasheet-text">
+                    <strong>${doc.title}</strong>
+                    <small>${doc.description || ""}</small>
+                  </span>
+                </button>
+              </li>`
+              )
+              .join("")}
+          </ul>
+        </section>`;
+    })
+    .join("");
+
+  datasheetList.querySelectorAll(".datasheet-link").forEach((button) => {
+    button.addEventListener("click", () => {
+      const doc = datasheetDocs.find((item) => item.id === button.dataset.id);
+      if (doc) openPdfTab(doc);
+    });
+  });
+}
+
+async function loadDatasheets() {
+  const payload = await fetchJson("/api/datasheets");
+  renderDatasheets(payload);
+}
+
+function ensurePdfJs() {
+  if (pdfjsReady) return pdfjsReady;
+  pdfjsReady = new Promise((resolve, reject) => {
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      resolve(window.pdfjsLib);
+      return;
+    }
+    reject(new Error("pdf.js failed to load"));
+  });
+  return pdfjsReady;
+}
+
+function renderEditorTabs() {
+  if (!editorTabs) return;
+  const codeLabel = fileName?.textContent || "main.c";
+  const codeTab = `
+    <button type="button" class="file-tab ${activeEditorTab === "code" ? "active" : ""}" data-tab="code" role="tab" aria-selected="${activeEditorTab === "code"}">
+      <span class="c-icon">C</span>
+      <span>${codeLabel}</span>
+    </button>`;
+  const pdfTabs = openPdfTabs
+    .map(
+      (tab) => `
+    <button type="button" class="file-tab ${activeEditorTab === tab.id ? "active" : ""}" data-tab="${tab.id}" role="tab" aria-selected="${activeEditorTab === tab.id}">
+      <span class="pdf-icon">PDF</span>
+      <span title="${tab.title}">${tab.doc || tab.title}</span>
+      <span class="tab-close" data-close="${tab.id}" title="Close">×</span>
+    </button>`
+    )
+    .join("");
+  editorTabs.innerHTML = codeTab + pdfTabs;
+  editorTabs.querySelectorAll(".file-tab").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const closeId = event.target?.dataset?.close;
+      if (closeId) {
+        event.stopPropagation();
+        closePdfTab(closeId);
+        return;
+      }
+      activateEditorTab(button.dataset.tab);
+    });
+  });
+}
+
+function setPdfReadingMode(enabled) {
+  lessonContent?.classList.toggle("pdf-reading", enabled);
+  studio?.classList.toggle("pdf-reading", enabled);
+  if (pdfViewer) pdfViewer.classList.toggle("hidden", !enabled);
+  const monacoEl = document.getElementById("monaco-editor");
+  if (monacoEl) monacoEl.style.visibility = enabled ? "hidden" : "visible";
+  if (fallbackEditor) fallbackEditor.style.visibility = enabled ? "hidden" : "visible";
+  if (!enabled) disconnectPdfObserver();
+}
+
+async function activateEditorTab(tabId) {
+  activeEditorTab = tabId || "code";
+  renderEditorTabs();
+  if (activeEditorTab === "code") {
+    setPdfReadingMode(false);
+    return;
+  }
+  const tab = openPdfTabs.find((item) => item.id === activeEditorTab);
+  if (!tab) {
+    activeEditorTab = "code";
+    setPdfReadingMode(false);
+    renderEditorTabs();
+    return;
+  }
+  setPdfReadingMode(true);
+  await loadPdfDocument(tab);
+}
+
+async function openPdfTab(doc) {
+  if (!openPdfTabs.some((tab) => tab.id === doc.id)) {
+    openPdfTabs.push({
+      id: doc.id,
+      title: doc.title,
+      doc: doc.doc,
+      url: doc.viewer_url || `/api/datasheets/${doc.id}/pdf`,
+    });
+  }
+  setLog(`Opening ${doc.title} in editor…`);
+  await activateEditorTab(doc.id);
+}
+
+function closePdfTab(docId) {
+  openPdfTabs = openPdfTabs.filter((tab) => tab.id !== docId);
+  if (activePdfId === docId) {
+    disconnectPdfObserver();
+    activePdfDoc = null;
+    activePdfId = null;
+    pdfRenderToken += 1;
+  }
+  if (activeEditorTab === docId) {
+    activateEditorTab(openPdfTabs.length ? openPdfTabs[openPdfTabs.length - 1].id : "code");
+  } else {
+    renderEditorTabs();
+  }
+}
+
+async function openAllDatasheets() {
+  if (!datasheetDocs.length) {
+    setLog("No datasheets loaded yet.");
+    return;
+  }
+  for (const doc of datasheetDocs) {
+    if (!openPdfTabs.some((tab) => tab.id === doc.id)) {
+      openPdfTabs.push({
+        id: doc.id,
+        title: doc.title,
+        doc: doc.doc,
+        url: doc.viewer_url || `/api/datasheets/${doc.id}/pdf`,
+      });
+    }
+  }
+  setLog(`Opened ${datasheetDocs.length} PDF tabs. Select one to view.`);
+  await activateEditorTab(datasheetDocs[0].id);
+}
+
+async function openDatasheetsPanel() {
+  showSidebarPanel("datasheets");
+  if (!datasheetDocs.length) {
+    try {
+      await loadDatasheets();
+    } catch (error) {
+      if (datasheetList) {
+        datasheetList.innerHTML = `<p class="inline-status">Could not load datasheets: ${error.message}</p>`;
+      }
+    }
+  }
+}
+
+async function loadPdfDocument(tab) {
+  const pdfjsLib = await ensurePdfJs();
+  if (pdfStatus) pdfStatus.textContent = "Downloading PDF…";
+  try {
+    if (activePdfId !== tab.id || !activePdfDoc) {
+      const response = await fetch(tab.url);
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(detail || `HTTP ${response.status}`);
+      }
+      const data = new Uint8Array(await response.arrayBuffer());
+      if (data.length < 5 || String.fromCharCode(data[0], data[1], data[2], data[3]) !== "%PDF") {
+        throw new Error("Server did not return a valid PDF file");
+      }
+      const loadingTask = pdfjsLib.getDocument({ data });
+      activePdfDoc = await loadingTask.promise;
+      activePdfId = tab.id;
+      pdfPageNumber = 1;
+      pdfFitWidth = true;
+      await buildPdfOutline(activePdfDoc);
+    }
+    await mountPdfContinuousView();
+    if (pdfStatus) pdfStatus.textContent = tab.title;
+  } catch (error) {
+    if (pdfStatus) pdfStatus.textContent = "Failed to load PDF";
+    if (pdfOutline) {
+      pdfOutline.innerHTML = `<p class="pdf-outline-empty">Could not open PDF: ${error.message}</p>`;
+    }
+    if (pdfPages) {
+      pdfPages.innerHTML = `<p class="pdf-outline-empty" style="color:#fff;padding:24px;">${error.message}</p>`;
+    }
+    setLog(`PDF load failed for ${tab.title}: ${error.message}`);
+  }
+}
+
+async function outlineDestToPage(pdf, dest) {
+  if (!dest) return null;
+  let explicit = dest;
+  try {
+    if (typeof dest === "string") {
+      explicit = await pdf.getDestination(dest);
+    }
+    if (!Array.isArray(explicit) || !explicit.length) return null;
+    const pageIndex = await pdf.getPageIndex(explicit[0]);
+    return pageIndex + 1;
+  } catch {
+    return null;
+  }
+}
+
+async function buildPdfOutline(pdf) {
+  if (!pdfOutline) return;
+  const outline = await pdf.getOutline();
+  const nodes = [];
+
+  async function walk(items, depth) {
+    if (!items) return;
+    for (const item of items) {
+      const page = await outlineDestToPage(pdf, item.dest);
+      nodes.push({
+        title: item.title || "Untitled",
+        page,
+        depth: Math.min(depth, 3),
+      });
+      if (item.items?.length) await walk(item.items, depth + 1);
+    }
+  }
+
+  await walk(outline, 0);
+
+  if (!nodes.length) {
+    const total = pdf.numPages;
+    const max = Math.min(total, 120);
+    for (let page = 1; page <= max; page += 1) {
+      nodes.push({ title: `Page ${page}`, page, depth: 0 });
+    }
+    if (total > max) {
+      nodes.push({ title: `… go to last page (${total})`, page: total, depth: 0 });
+    }
+  }
+
+  pdfOutline.innerHTML = nodes
+    .map(
+      (node, index) => `
+      <button type="button" class="pdf-outline-item depth-${node.depth}" data-page="${node.page || ""}" data-index="${index}">
+        ${node.title}${node.page ? ` · p.${node.page}` : ""}
+      </button>`
+    )
+    .join("");
+
+  pdfOutline.querySelectorAll(".pdf-outline-item").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const page = Number(button.dataset.page);
+      if (!page) return;
+      pdfOutline.querySelectorAll(".pdf-outline-item").forEach((el) => el.classList.remove("active"));
+      button.classList.add("active");
+      await scrollToPdfPage(page);
+    });
+  });
+}
+
+function disconnectPdfObserver() {
+  if (pdfPageObserver) {
+    pdfPageObserver.disconnect();
+    pdfPageObserver = null;
+  }
+}
+
+async function computePdfScale() {
+  if (!activePdfDoc || !pdfPages) return pdfScale;
+  if (!pdfFitWidth) return pdfScale;
+  const page = await activePdfDoc.getPage(1);
+  const base = page.getViewport({ scale: 1 });
+  const available = Math.max(320, pdfPages.clientWidth - 48);
+  pdfScale = Math.max(0.55, Math.min(available / base.width, 2.2));
+  return pdfScale;
+}
+
+async function mountPdfContinuousView(scrollToPage = 1) {
+  if (!activePdfDoc || !pdfPages) return;
+  const token = ++pdfRenderToken;
+  disconnectPdfObserver();
+  await computePdfScale();
+  const total = activePdfDoc.numPages;
+  pdfPageHeights = new Array(total + 1).fill(0);
+
+  // Estimate page height from page 1 for placeholders.
+  const first = await activePdfDoc.getPage(1);
+  if (token !== pdfRenderToken) return;
+  const firstViewport = first.getViewport({ scale: pdfScale });
+  const estimateHeight = Math.ceil(firstViewport.height);
+
+  pdfPages.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for (let page = 1; page <= total; page += 1) {
+    const wrap = document.createElement("div");
+    wrap.className = "pdf-page-wrap is-loading";
+    wrap.dataset.page = String(page);
+    wrap.style.width = `${Math.ceil(firstViewport.width)}px`;
+    wrap.style.minHeight = `${estimateHeight}px`;
+    frag.appendChild(wrap);
+  }
+  pdfPages.appendChild(frag);
+  if (pdfPageLabel) pdfPageLabel.textContent = `Page 1 / ${total}`;
+
+  pdfPageObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const page = Number(entry.target.dataset.page);
+        renderPdfPageInto(entry.target, page, token);
+      });
+    },
+    { root: pdfPages, rootMargin: "600px 0px", threshold: 0.01 }
+  );
+
+  pdfPages.querySelectorAll(".pdf-page-wrap").forEach((el) => pdfPageObserver.observe(el));
+
+  if (!pdfScrollBound) {
+    pdfScrollBound = true;
+    pdfPages.addEventListener("scroll", () => updatePdfPageFromScroll(), { passive: true });
+  }
+
+  // Kick first pages immediately for a normal Adobe-like open.
+  const early = Math.min(3, total);
+  for (let page = 1; page <= early; page += 1) {
+    const el = pdfPages.querySelector(`.pdf-page-wrap[data-page="${page}"]`);
+    if (el) await renderPdfPageInto(el, page, token);
+  }
+
+  if (scrollToPage > 1) await scrollToPdfPage(scrollToPage);
+  else pdfPages.scrollTop = 0;
+}
+
+async function renderPdfPageInto(wrap, pageNumber, token = pdfRenderToken) {
+  if (!activePdfDoc || !wrap || wrap.dataset.rendered === "1") return;
+  if (token !== pdfRenderToken) return;
+  try {
+    const page = await activePdfDoc.getPage(pageNumber);
+    if (token !== pdfRenderToken) return;
+    const viewport = page.getViewport({ scale: pdfScale });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", { alpha: false });
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    wrap.innerHTML = "";
+    wrap.appendChild(canvas);
+    wrap.classList.remove("is-loading");
+    wrap.style.width = `${canvas.width}px`;
+    wrap.style.minHeight = `${canvas.height}px`;
+    await page.render({ canvasContext: context, viewport }).promise;
+    wrap.dataset.rendered = "1";
+    pdfPageHeights[pageNumber] = canvas.height;
+  } catch (error) {
+    wrap.classList.remove("is-loading");
+    wrap.textContent = `Failed to render page ${pageNumber}`;
+  }
+}
+
+function updatePdfPageFromScroll() {
+  if (!pdfPages || !activePdfDoc) return;
+  const wraps = pdfPages.querySelectorAll(".pdf-page-wrap");
+  const mid = pdfPages.scrollTop + pdfPages.clientHeight * 0.25;
+  let current = 1;
+  wraps.forEach((wrap) => {
+    if (wrap.offsetTop <= mid) current = Number(wrap.dataset.page) || current;
+  });
+  pdfPageNumber = current;
+  if (pdfPageLabel) pdfPageLabel.textContent = `Page ${current} / ${activePdfDoc.numPages}`;
+}
+
+async function scrollToPdfPage(pageNumber) {
+  if (!pdfPages || !activePdfDoc) return;
+  const total = activePdfDoc.numPages;
+  pdfPageNumber = Math.max(1, Math.min(pageNumber, total));
+  const wrap = pdfPages.querySelector(`.pdf-page-wrap[data-page="${pdfPageNumber}"]`);
+  if (!wrap) return;
+  await renderPdfPageInto(wrap, pdfPageNumber);
+  wrap.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (pdfPageLabel) pdfPageLabel.textContent = `Page ${pdfPageNumber} / ${total}`;
+}
+
+async function renderPdfPage(pageNumber) {
+  // Kept for toolbar prev/next: scroll continuous view.
+  await scrollToPdfPage(pageNumber);
+}
+
 function updateModeUi() {
   const isSim = runMode === "simulation";
   modeSimulationBtn?.classList.toggle("active", isSim);
@@ -1312,12 +1752,45 @@ activityButtons.forEach((button) => {
       await openFirmwarePanel();
       return;
     }
+    if (panel === "datasheets") {
+      await openDatasheetsPanel();
+      return;
+    }
     if (panel === "board") {
       await openBoardPanel();
     }
   });
 });
 
+openAllDatasheetsBtn?.addEventListener("click", openAllDatasheets);
+pdfPrevBtn?.addEventListener("click", () => scrollToPdfPage(pdfPageNumber - 1));
+pdfNextBtn?.addEventListener("click", () => scrollToPdfPage(pdfPageNumber + 1));
+pdfZoomInBtn?.addEventListener("click", async () => {
+  pdfFitWidth = false;
+  pdfScale = Math.min(pdfScale + 0.15, 3);
+  await mountPdfContinuousView(pdfPageNumber);
+});
+pdfZoomOutBtn?.addEventListener("click", async () => {
+  pdfFitWidth = false;
+  pdfScale = Math.max(pdfScale - 0.15, 0.5);
+  await mountPdfContinuousView(pdfPageNumber);
+});
+document.addEventListener("keydown", (event) => {
+  if (activeEditorTab === "code" || !activePdfDoc) return;
+  if (event.target && ["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
+  if (event.key === "ArrowLeft" || event.key === "PageUp") {
+    event.preventDefault();
+    scrollToPdfPage(pdfPageNumber - 1);
+  } else if (event.key === "ArrowRight" || event.key === "PageDown") {
+    event.preventDefault();
+    scrollToPdfPage(pdfPageNumber + 1);
+  }
+});
+window.addEventListener("resize", () => {
+  if (activeEditorTab === "code" || !activePdfDoc || !pdfFitWidth) return;
+  clearTimeout(window.__pdfResizeTimer);
+  window.__pdfResizeTimer = setTimeout(() => mountPdfContinuousView(pdfPageNumber), 200);
+});
 panelTabs.forEach((button) => {
   button.addEventListener("click", () => showBottomPanel(button.dataset.panel));
 });
@@ -1335,9 +1808,15 @@ buildLog.addEventListener("click", (event) => {
   setupResizers();
   showSidebarPanel("lessons");
   showBottomPanel("output");
+  renderEditorTabs();
   try {
-    const [lessons, firmware] = await Promise.all([fetchJson("/api/lessons"), fetchJson("/api/firmware")]);
+    const [lessons, firmware, datasheetsResult] = await Promise.all([
+      fetchJson("/api/lessons"),
+      fetchJson("/api/firmware"),
+      fetchJson("/api/datasheets").catch(() => null),
+    ]);
     firmwareFiles = firmware.files || [];
+    if (datasheetsResult) renderDatasheets(datasheetsResult);
     lessonList.innerHTML = lessons
       .map(
         (lesson) =>

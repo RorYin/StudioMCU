@@ -36,3 +36,6 @@ test_import.py
 tools/renode/**
 !tools/renode/README.md
 !tools/renode/.gitkeep
+
+# Cached ST datasheet PDFs (downloaded on first open)
+docs/datasheet_cache/

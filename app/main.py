@@ -17,6 +17,7 @@ from app.lessons import list_lessons, get_lesson
 from app.flash import board_status, build_firmware, flash_firmware, clear_builds
 from app.serial_console import SerialConsoleManager
 from app.renode_sim import simulator
+from app.datasheets import list_datasheets, get_datasheet, ensure_cached_pdf
 
 app = FastAPI()
 app.add_middleware(
@@ -47,6 +48,31 @@ def root():
 @app.get("/api/lessons")
 def api_list_lessons():
     return list_lessons()
+
+
+@app.get("/api/datasheets")
+def api_list_datasheets():
+    """Official STM32F446RE + NUCLEO-F446RE PDF reference documents."""
+    return list_datasheets()
+
+
+@app.get("/api/datasheets/{doc_id}/pdf")
+def api_datasheet_pdf(doc_id: str):
+    """Serve a cached PDF (downloaded from ST on first request)."""
+    if get_datasheet(doc_id) is None:
+        raise HTTPException(status_code=404, detail="Datasheet not found")
+    try:
+        path = ensure_cached_pdf(doc_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=path.name,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 @app.get("/api/lesson/{lesson_id}")
 def lesson_detail(lesson_id: str):
