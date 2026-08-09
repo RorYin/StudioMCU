@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-CACHE_DIR = PROJECT_ROOT / "docs" / "datasheet_cache"
+from app.paths import app_root
+
+CACHE_DIR = app_root() / "docs" / "datasheet_cache"
 
 # PDF-only index (no web pages / zip packs).
 DATASHEETS = [

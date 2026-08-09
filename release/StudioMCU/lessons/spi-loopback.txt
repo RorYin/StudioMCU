@@ -1,0 +1,16 @@
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_spi.h"
+
+int main(void)
+{
+  /* SPI loopback: short PA7 (MOSI) to PA6 (MISO). */
+  /* 1. Enable GPIOA and SPI1 clocks. */
+  /* 2. Configure PA5/PA6/PA7 as AF5. */
+  /* 3. Set SPI1 master mode with software NSS, then enable SPE. */
+  /* 4. Transfer a byte with LL_SPI_TransmitData8 / ReceiveData8. */
+
+  while (1)
+  {
+  }
+}

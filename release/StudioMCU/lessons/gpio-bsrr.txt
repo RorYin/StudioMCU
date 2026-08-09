@@ -1,0 +1,13 @@
+#include "stm32f4xx_hal.h"
+
+int main(void)
+{
+  /* 1. Call HAL_Init() and enable the GPIOA clock. */
+  /* 2. Configure PA5 as a push-pull output with HAL_GPIO_Init(). */
+  /* 3. Turn the LED on with HAL_GPIO_WritePin(..., GPIO_PIN_SET). */
+  /* 4. Turn the LED off with HAL_GPIO_WritePin(..., GPIO_PIN_RESET). */
+
+  while (1)
+  {
+  }
+}

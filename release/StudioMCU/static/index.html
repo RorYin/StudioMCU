@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudioMCU</title>
+  <link rel="icon" type="image/png" href="/static/img/logo.png" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-logo" src="/static/img/logo.png" alt="StudioMCU logo" width="28" height="28" />
+        <span>StudioMCU</span>
+      </div>
+      <div class="credit">Developed By RorYin</div>
+      <div class="target"><span class="target-label">TARGET</span> NUCLEO-F446RE</div>
+      <div class="mode-toggle" role="group" aria-label="Run mode">
+        <button type="button" id="mode-simulation" class="mode-button active" data-mode="simulation">Simulation</button>
+        <button type="button" id="mode-hardware" class="mode-button" data-mode="hardware">Hardware</button>
+      </div>
+      <div class="board-status" role="status">
+        <span id="board-status-dot" class="status-dot unknown"></span>
+        <span id="board-status">Checking ST-Link...</span>
+        <button id="refresh-board-status" class="icon-button" type="button" title="Refresh board status">↻</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="activity-bar" aria-label="Workspace tools">
+        <button type="button" class="activity-button active" data-panel="lessons" title="Lessons" aria-label="Lessons">☷</button>
+        <button type="button" class="activity-button" data-panel="firmware" title="Firmware reference" aria-label="Firmware reference">◈</button>
+        <button type="button" class="activity-button" data-panel="datasheets" title="Datasheets" aria-label="Datasheets">⧉</button>
+        <button type="button" class="activity-button" data-panel="board" title="Board info" aria-label="Board info">⚡</button>
+      </aside>
+
+      <aside class="lesson-sidebar">
+        <div class="sidebar-heading">
+          <span id="sidebar-title">EXPLORER</span>
+          <small id="sidebar-subtitle">LEARNING PATH</small>
+        </div>
+
+        <div id="lessons-panel" class="sidebar-panel">
+          <ul id="lesson-list"></ul>
+          <div class="hardware-card">
+            <strong>Board quick note</strong>
+            <p>LD2 is PA5. UART lessons use the ST-Link VCP. SPI loopback needs MOSI tied to MISO.</p>
+          </div>
+        </div>
+
+        <div id="firmware-panel" class="sidebar-panel hidden">
+          <div class="reference-heading">FIRMWARE REFERENCE <span>READ-ONLY</span></div>
+          <ul id="firmware-list" class="firmware-list"></ul>
+          <div class="hardware-card">
+            <strong>Vendor-style CMSIS</strong>
+            <p>Open <code>stm32f446xe.h</code> to see peripheral structs, base addresses, and bit macros used by every lesson.</p>
+          </div>
+        </div>
+
+        <div id="datasheets-panel" class="sidebar-panel hidden">
+          <div class="reference-heading">DATASHEETS <span>PDF ONLY</span></div>
+          <div class="datasheet-toolbar">
+            <button id="open-all-datasheets" class="button compact secondary" type="button">Open all PDFs</button>
+          </div>
+          <div id="datasheet-list" class="datasheet-list"></div>
+          <div class="hardware-card">
+            <strong>In-editor PDF viewer</strong>
+            <p>Click a document to open it as an editor tab. Sections appear on the right, Adobe-style.</p>
+          </div>
+        </div>
+
+        <div id="board-panel" class="sidebar-panel hidden">
+          <div class="reference-heading">BOARD INFO <span>STATUS</span></div>
+          <div class="board-summary">
+            <p><strong>Board:</strong> NUCLEO-F446RE</p>
+            <p><strong>MCU:</strong> STM32F446RE</p>
+            <p><strong>Core:</strong> Cortex-M4 @ HSI 16 MHz</p>
+            <p><strong>Flash tool:</strong> st-flash / ST-Link</p>
+            <p id="board-panel-status"><strong>Link:</strong> Checking…</p>
+          </div>
+          <div class="hardware-card">
+            <strong>Ready to flash</strong>
+            <p>Use Build, then Flash. Open Serial Monitor for UART and ADC lessons.</p>
+          </div>
+          <div class="hardware-card">
+            <strong>Build cleanup</strong>
+            <p>Remove temporary folders under <code>builds/</code>. The <code>builds/lessons</code> folder is kept.</p>
+            <button id="clear-builds" class="button compact secondary" type="button">Clear builds</button>
+            <p id="clear-builds-status" class="inline-status" hidden></p>
+          </div>
+        </div>
+      </aside>
+
+      <div id="sidebar-resizer" class="resize-handle vertical" role="separator" aria-orientation="vertical" aria-label="Resize lesson explorer"></div>
+
+      <section class="studio">
+        <div class="editor-titlebar">
+          <div class="nav-arrows" role="group" aria-label="Editor navigation">
+            <button id="nav-back" class="nav-arrow-button" type="button" title="Go Back (Right Alt+←)" aria-label="Go Back" disabled>←</button>
+          </div>
+          <div id="editor-tabs" class="editor-tabs" role="tablist" aria-label="Open editors">
+            <button type="button" class="file-tab active" data-tab="code" role="tab" aria-selected="true">
+              <span class="c-icon">C</span>
+              <span id="file-name">welcome.c</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="lesson-toolbar" id="lesson-toolbar">
+          <div class="lesson-meta">
+            <p class="eyebrow" id="lesson-number">SELECT A LESSON</p>
+            <h1 id="lesson-title">Choose a lesson to begin</h1>
+            <p id="lesson-summary">Each lesson is designed for your NUCLEO-F446RE.</p>
+          </div>
+          <div class="action-group">
+            <button id="load-lesson" class="button secondary">Reset starter</button>
+            <button id="hint-btn" class="button secondary">Hint</button>
+            <button id="solution-btn" class="button secondary">Show solution</button>
+            <button id="build-btn" class="button primary">▶ Build</button>
+            <button id="flash-btn" class="button success" disabled>▶ Run simulation</button>
+            <button id="solution-flash-btn" class="button solution" disabled>Build &amp; run solution</button>
+          </div>
+        </div>
+
+        <div class="lesson-content">
+          <aside class="instruction-panel" id="instruction-panel">
+            <h2>Mission</h2>
+            <ol id="lesson-steps"><li>Select a lesson from the learning path.</li></ol>
+            <div id="hint-panel" class="hint-panel" hidden></div>
+            <div class="nucleo-board-card">
+              <div class="nucleo-board-header">
+                <strong>NUCLEO-F446RE</strong>
+                <span id="sim-badge" class="sim-badge">SIM</span>
+              </div>
+              <div id="nucleo-board" class="nucleo-board" aria-label="Virtual NUCLEO-F446RE board">
+                <svg viewBox="0 0 280 420" role="img" aria-label="Nucleo board illustration">
+                  <defs>
+                    <linearGradient id="pcbGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#248a45"/>
+                      <stop offset="100%" stop-color="#176533"/>
+                    </linearGradient>
+                  </defs>
+                  <rect class="pcb" x="18" y="18" width="244" height="384" rx="12" fill="url(#pcbGrad)"></rect>
+                  <circle class="mount" cx="34" cy="34" r="5"></circle>
+                  <circle class="mount" cx="246" cy="34" r="5"></circle>
+                  <circle class="mount" cx="34" cy="386" r="5"></circle>
+                  <circle class="mount" cx="246" cy="386" r="5"></circle>
+                  <rect class="stlink" x="40" y="40" width="200" height="64" rx="6"></rect>
+                  <text x="140" y="66" text-anchor="middle" class="board-label">ST-LINK/V2-1</text>
+                  <text x="140" y="84" text-anchor="middle" class="board-sub">USB · VCP · SWD</text>
+                  <circle class="power-led" cx="58" cy="120" r="5"></circle>
+                  <text x="74" y="124" class="board-sub">LD1</text>
+                  <rect class="mcu" x="95" y="168" width="90" height="90" rx="6"></rect>
+                  <text x="140" y="218" text-anchor="middle" class="board-label">STM32F446RE</text>
+                  <circle id="board-ld2" class="led" cx="210" cy="148" r="11"></circle>
+                  <text x="210" y="174" text-anchor="middle" class="board-sub">LD2 · PA5</text>
+                  <circle id="board-button" class="user-button" cx="70" cy="148" r="15"></circle>
+                  <text x="70" y="178" text-anchor="middle" class="board-sub">B1 · PC13</text>
+                  <rect class="header" x="34" y="286" width="16" height="96" rx="2"></rect>
+                  <rect class="header" x="230" y="286" width="16" height="96" rx="2"></rect>
+                  <text x="140" y="320" text-anchor="middle" class="board-sub">CN7 / CN10 Morpho</text>
+                  <text x="140" y="350" text-anchor="middle" class="board-label">NUCLEO-F446RE</text>
+                </svg>
+              </div>
+              <p id="sim-note" class="sim-note">Build, then run simulation to see LD2 / USART2 activity.</p>
+              <div class="sim-actions">
+                <button id="sim-button-tap" class="button compact secondary" type="button">Tap user button</button>
+                <button id="sim-stop" class="button compact secondary" type="button">Stop simulation</button>
+              </div>
+            </div>
+            <div class="tip-card">
+              <strong>How it works</strong>
+              <p>Choose <em>Simulation</em> (Renode) or <em>Hardware</em> (ST-Link). Build firmware, then run it on the selected target.</p>
+            </div>
+          </aside>
+          <div id="instruction-resizer" class="resize-handle vertical" role="separator" aria-orientation="vertical" aria-label="Resize lesson instructions"></div>
+          <div class="editor-stack" id="editor-stack">
+            <div id="monaco-editor" aria-label="C code editor"></div>
+            <textarea id="code-editor" aria-label="C code editor fallback"></textarea>
+            <div id="pdf-viewer" class="pdf-viewer hidden" aria-label="PDF datasheet viewer">
+              <div class="pdf-main">
+                <div class="pdf-toolbar">
+                  <button type="button" id="pdf-prev" class="button compact secondary" title="Previous page">◀</button>
+                  <span id="pdf-page-label" class="pdf-page-label">Page 0 / 0</span>
+                  <button type="button" id="pdf-next" class="button compact secondary" title="Next page">▶</button>
+                  <button type="button" id="pdf-zoom-out" class="button compact secondary" title="Zoom out">−</button>
+                  <button type="button" id="pdf-zoom-in" class="button compact secondary" title="Zoom in">+</button>
+                  <span id="pdf-status" class="pdf-status">Ready</span>
+                </div>
+                <div id="pdf-pages" class="pdf-pages"></div>
+              </div>
+              <aside class="pdf-outline-pane" aria-label="PDF sections">
+                <div class="pdf-outline-header">Sections</div>
+                <div id="pdf-outline" class="pdf-outline"></div>
+              </aside>
+            </div>
+          </div>
+        </div>
+
+        <div id="bottom-resizer" class="resize-handle horizontal" role="separator" aria-orientation="horizontal" aria-label="Resize output panel"></div>
+
+        <section class="bottom-panel">
+          <div class="panel-tabs">
+            <button type="button" class="panel-tab active" data-panel="output">OUTPUT</button>
+            <button type="button" class="panel-tab" data-panel="problems">PROBLEMS</button>
+            <button type="button" class="panel-tab" data-panel="serial">SERIAL MONITOR</button>
+          </div>
+          <div class="panel-body active" id="output-panel"><pre id="build-log">Ready. Select a lesson to start.</pre></div>
+          <div class="panel-body" id="problems-panel"><pre>No problems reported yet. Build the code to see compiler diagnostics here.</pre></div>
+          <div class="panel-body" id="serial-panel">
+            <div class="serial-controls">
+              <select id="serial-port" aria-label="Serial port"></select>
+              <button id="refresh-ports" class="button compact secondary" type="button">Refresh ports</button>
+              <button id="connect-serial" class="button compact secondary" type="button">Connect</button>
+              <button id="disconnect-serial" class="button compact secondary" type="button">Disconnect</button>
+              <input id="serial-input" class="serial-input" type="text" placeholder="Type to USART2 (simulation echo)…" />
+              <button id="serial-send" class="button compact secondary" type="button">Send</button>
+            </div>
+            <pre id="serial-output">Serial monitor is ready.</pre>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="statusbar">
+      <span id="status-message">ST-Link status is being checked…</span>
+      <span>STM32F446RE</span>
+      <span>C · ARM GCC</span>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -4,12 +4,18 @@ import shutil
 import subprocess
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-FIRMWARE_TEMPLATES = BASE_DIR.parent / "firmware"
+from app.paths import app_root, bundle_root
+
+ROOT = app_root()
+_BUNDLE = bundle_root()
+FIRMWARE_TEMPLATES = ROOT / "firmware"
+if not FIRMWARE_TEMPLATES.is_dir():
+    FIRMWARE_TEMPLATES = _BUNDLE / "firmware"
+
 LOCAL_TOOLCHAIN_ROOTS = [
-    BASE_DIR.parent / "arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi",
-    BASE_DIR.parent / "toolchain" / "stlink-1.7",
-    BASE_DIR.parent / "toolchain",
+    ROOT / "arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi",
+    ROOT / "toolchain" / "stlink-1.7",
+    ROOT / "toolchain",
 ]
 
 

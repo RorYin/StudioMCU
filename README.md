@@ -125,6 +125,12 @@ For **Hardware** mode, install OpenOCD/`stlink` tools so `st-flash` and `st-info
 ## Run
 
 ```bash
+python studiomcu_launcher.py
+```
+
+Or:
+
+```bash
 python app/main.py
 ```
 
@@ -139,6 +145,32 @@ Open [http://localhost:8000](http://localhost:8000).
 
 **Simulates well:** GPIO LED / BSRR, button + LED, SysTick blink, USART2 hello/echo.  
 **Limited in Renode F4 model:** SPI, I2C, ADC, TIM PWM.
+
+## Package as a single .exe (Windows)
+
+Build a portable package with PyInstaller. The `.exe` embeds the Python app; **lessons/** and **static/** stay outside so you can edit UI/lessons without rebuilding.
+
+```powershell
+.venv\Scripts\Activate.ps1
+pip install pyinstaller pillow
+python tools/build_exe.py
+```
+
+Output folder:
+
+```
+dist/StudioMCU/
+  StudioMCU.exe      ← double-click to run (opens the browser)
+  lessons/           ← edit anytime
+  static/            ← edit anytime (includes logo)
+  firmware/
+  simulation/
+  README_RUNTIME.txt
+```
+
+Copy the whole `dist/StudioMCU/` folder to another PC. Keep `lessons/` and `static/` next to the exe.
+
+Logo assets: `static/img/logo.png` (web) and `assets/studiomcu.ico` (exe icon).
 
 ## Adding lessons
 

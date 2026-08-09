@@ -13,9 +13,14 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
-BASE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BASE_DIR.parent
-SIM_DIR = PROJECT_ROOT / "simulation"
+from pathlib import Path
+from uuid import uuid4
+
+from app.paths import app_root, bundle_root
+
+PROJECT_ROOT = app_root()
+_SIM_CANDIDATES = [PROJECT_ROOT / "simulation", bundle_root() / "simulation"]
+SIM_DIR = next((path for path in _SIM_CANDIDATES if path.is_dir()), _SIM_CANDIDATES[0])
 
 DEFAULT_MONITOR_PORT = 29123
 DEFAULT_UART_PORT = 29124
@@ -26,7 +31,7 @@ BUTTON_DEVICE = "gpioPortC.userButton"
 
 
 def _resolve_renode() -> Path | None:
-    local = PROJECT_ROOT / "tools" / "renode"
+    local = app_root() / "tools" / "renode"
     candidates = [
         Path(os.environ.get("RENODE_PATH", "")),
         local / "renode.exe",

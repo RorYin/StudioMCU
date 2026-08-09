@@ -2,9 +2,9 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-# Allow both `python app/main.py` (VS Code Run Python File) and
-# `python -m app.main` to import the app package correctly.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from app.paths import app_root, bundle_root, ensure_runtime_dirs, is_frozen
+
+PROJECT_ROOT = app_root()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -19,6 +19,8 @@ from app.serial_console import SerialConsoleManager
 from app.renode_sim import simulator
 from app.datasheets import list_datasheets, get_datasheet, ensure_cached_pdf
 
+ensure_runtime_dirs()
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -28,10 +30,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BASE_DIR = Path(__file__).resolve().parent
-STATIC_DIR = BASE_DIR.parent / "static"
-BUILD_DIR = BASE_DIR.parent / "builds"
-FIRMWARE_DIR = BASE_DIR.parent / "firmware"
+# lessons/ and static/ always live beside the .exe (or repo root) so they stay editable.
+STATIC_DIR = PROJECT_ROOT / "static"
+BUILD_DIR = PROJECT_ROOT / "builds"
+FIRMWARE_DIR = PROJECT_ROOT / "firmware"
+if not FIRMWARE_DIR.is_dir():
+    FIRMWARE_DIR = bundle_root() / "firmware"
 BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
 # "hardware" | "simulation"
@@ -259,19 +263,22 @@ def serial_read():
 if __name__ == "__main__":
     import uvicorn
 
-    # This makes VS Code's Run Python File button start the web app directly.
-    # Builds write to `builds/`. Restrict the reloader to source directories
-    # so it does not restart while the browser is waiting for a build result.
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        reload_dirs=[
-            str(PROJECT_ROOT / "app"),
-            str(PROJECT_ROOT / "firmware"),
-            str(PROJECT_ROOT / "lessons"),
-            str(PROJECT_ROOT / "static"),
-            str(PROJECT_ROOT / "simulation"),
-        ],
-    )
+    # VS Code "Run Python File" entry. Prefer studiomcu_launcher.py for the .exe.
+    if is_frozen():
+        from studiomcu_launcher import main as launcher_main
+
+        launcher_main()
+    else:
+        uvicorn.run(
+            "app.main:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=True,
+            reload_dirs=[
+                str(PROJECT_ROOT / "app"),
+                str(PROJECT_ROOT / "firmware"),
+                str(PROJECT_ROOT / "lessons"),
+                str(PROJECT_ROOT / "static"),
+                str(PROJECT_ROOT / "simulation"),
+            ],
+        )

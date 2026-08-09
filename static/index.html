@@ -4,12 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>StudioMCU</title>
+  <link rel="icon" type="image/png" href="/static/img/logo.png" />
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand"><span class="brand-mark">&lt;/&gt;</span><span>StudioMCU</span></div>
+      <div class="brand">
+        <img class="brand-logo" src="/static/img/logo.png" alt="StudioMCU logo" width="28" height="28" />
+        <span>StudioMCU</span>
+      </div>
+      <div class="credit">Developed By RorYin</div>
       <div class="target"><span class="target-label">TARGET</span> NUCLEO-F446RE</div>
       <div class="mode-toggle" role="group" aria-label="Run mode">
         <button type="button" id="mode-simulation" class="mode-button active" data-mode="simulation">Simulation</button>

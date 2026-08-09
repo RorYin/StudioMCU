@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import List, TypedDict
 
+from app.paths import app_root
+
 
 class Lesson(TypedDict):
     id: str
@@ -12,7 +14,7 @@ class Lesson(TypedDict):
     hint: str
 
 
-LESSON_FOLDER = Path(__file__).resolve().parent.parent / "lessons"
+LESSON_FOLDER = app_root() / "lessons"
 
 LESSON_DEFINITIONS: List[dict] = [
     {
