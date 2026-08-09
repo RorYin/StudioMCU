@@ -1,0 +1,35 @@
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
+
+static void USART2_Init(void)
+{
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
+
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_7);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_3, LL_GPIO_AF_7);
+
+  LL_USART_SetBaudRate(USART2, 16000000U, 115200U);
+  LL_USART_SetTransferDirection(USART2, LL_USART_DIRECTION_TX_RX);
+  LL_USART_Enable(USART2);
+}
+
+int main(void)
+{
+  USART2_Init();
+
+  while (1)
+  {
+    if (LL_USART_IsActiveFlag_RXNE(USART2))
+    {
+      uint8_t received = LL_USART_ReceiveData8(USART2);
+      while (!LL_USART_IsActiveFlag_TXE(USART2))
+      {
+      }
+      LL_USART_TransmitData8(USART2, received);
+    }
+  }
+}

@@ -1,0 +1,18 @@
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
+#include "stm32f4xx_ll_adc.h"
+#include "stm32f4xx_ll_utils.h"
+
+int main(void)
+{
+  /* Read ADC1 channel 0 on PA0 and print over USART2. */
+  /* 1. Initialize USART2 with LL APIs. */
+  /* 2. Set PA0 to analog mode and enable ADC1. */
+  /* 3. Start conversion, wait for EOCS, read 12-bit data. */
+  /* 4. Print the result over the serial monitor. */
+
+  while (1)
+  {
+  }
+}

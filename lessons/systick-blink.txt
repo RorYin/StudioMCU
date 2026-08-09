@@ -1,0 +1,12 @@
+#include "stm32f4xx_hal.h"
+
+int main(void)
+{
+  /* 1. Call HAL_Init() — this programs SysTick for 1 ms ticks. */
+  /* 2. Enable GPIOA and configure PA5 as a push-pull output. */
+  /* 3. Blink LD2 using HAL_GPIO_TogglePin() and HAL_Delay(500). */
+
+  while (1)
+  {
+  }
+}

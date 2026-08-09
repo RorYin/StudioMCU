@@ -1,0 +1,15 @@
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
+
+int main(void)
+{
+  /* 1. Enable GPIOA and USART2 clocks with LL_AHB1/APB1_GRP1_EnableClock(). */
+  /* 2. Set PA2 to alternate function AF7 (USART2_TX). */
+  /* 3. Configure USART2 for 115200 baud, TX only, then enable it. */
+  /* 4. Transmit a hello string with LL_USART_TransmitData8(). */
+
+  while (1)
+  {
+  }
+}

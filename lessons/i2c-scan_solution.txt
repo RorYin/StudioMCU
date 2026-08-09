@@ -1,0 +1,96 @@
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
+#include "stm32f4xx_ll_i2c.h"
+
+/*
+ * I2C1 on PB8=SCL, PB9=SDA (AF4).
+ * Scan for any ACK on addresses 0x08..0x77 and report over USART2.
+ */
+static void USART2_Init(void)
+{
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
+
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_7);
+
+  LL_USART_SetBaudRate(USART2, 16000000U, 115200U);
+  LL_USART_SetTransferDirection(USART2, LL_USART_DIRECTION_TX);
+  LL_USART_Enable(USART2);
+}
+
+static void USART2_WriteString(const char *text)
+{
+  while (*text != '\0')
+  {
+    while (!LL_USART_IsActiveFlag_TXE(USART2))
+    {
+    }
+    LL_USART_TransmitData8(USART2, (uint8_t)(*text));
+    text++;
+  }
+}
+
+static void I2C1_Init(void)
+{
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C1);
+
+  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_8 | LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN);
+  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_8, LL_GPIO_PULL_UP);
+  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_9, LL_GPIO_PULL_UP);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_8, LL_GPIO_AF_4);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_9, LL_GPIO_AF_4);
+
+  LL_I2C_Disable(I2C1);
+  LL_I2C_SetPeriphClock(I2C1, 16U);   /* APB1 = 16 MHz */
+  LL_I2C_SetClockPeriod(I2C1, 80U);   /* ~100 kHz */
+  LL_I2C_SetRiseTime(I2C1, 17U);
+  LL_I2C_Enable(I2C1);
+}
+
+static int I2C1_Probe(uint8_t addr7)
+{
+  volatile uint32_t timeout;
+
+  LL_I2C_GenerateStartCondition(I2C1);
+  while (!LL_I2C_IsActiveFlag_SB(I2C1))
+  {
+  }
+  LL_I2C_TransmitData8(I2C1, (uint8_t)(addr7 << 1));
+
+  for (timeout = 20000U; timeout != 0U; timeout--)
+  {
+    if (LL_I2C_IsActiveFlag_ADDR(I2C1))
+    {
+      LL_I2C_ClearFlag_ADDR(I2C1);
+      LL_I2C_GenerateStopCondition(I2C1);
+      return 1;
+    }
+  }
+
+  LL_I2C_GenerateStopCondition(I2C1);
+  return 0;
+}
+
+int main(void)
+{
+  USART2_Init();
+  I2C1_Init();
+  USART2_WriteString("I2C scan:\r\n");
+
+  for (uint8_t addr = 0x08U; addr < 0x78U; addr++)
+  {
+    if (I2C1_Probe(addr) != 0)
+    {
+      USART2_WriteString("Found device\r\n");
+    }
+  }
+
+  while (1)
+  {
+  }
+}

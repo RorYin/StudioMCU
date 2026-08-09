@@ -1,0 +1,37 @@
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_spi.h"
+
+/*
+ * SPI client (slave): another SPI master drives SCK/MOSI into this board.
+ */
+static void SPI1_Init(void)
+{
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
+
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_5);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_5);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_5);
+
+  LL_SPI_SetMode(SPI1, LL_SPI_MODE_SLAVE);
+  LL_SPI_SetNSSModeSoft(SPI1);
+  LL_SPI_Enable(SPI1);
+}
+
+int main(void)
+{
+  SPI1_Init();
+
+  while (1)
+  {
+    if (LL_SPI_IsActiveFlag_RXNE(SPI1))
+    {
+      uint8_t received = LL_SPI_ReceiveData8(SPI1);
+      (void)received;
+    }
+  }
+}

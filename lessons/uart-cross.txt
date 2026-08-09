@@ -1,0 +1,16 @@
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
+
+int main(void)
+{
+  /* External UART on USART1: PA9=TX, PA10=RX (share grounds). */
+  /* 1. Enable GPIOA and USART1 clocks. */
+  /* 2. Configure PA9/PA10 as AF7 with LL_GPIO_SetAFPin_8_15(). */
+  /* 3. Set 9600 baud, enable TX+RX. */
+  /* 4. Echo bytes from the external UART device. */
+
+  while (1)
+  {
+  }
+}

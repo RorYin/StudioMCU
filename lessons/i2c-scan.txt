@@ -1,0 +1,17 @@
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_gpio.h"
+#include "stm32f4xx_ll_usart.h"
+#include "stm32f4xx_ll_i2c.h"
+
+int main(void)
+{
+  /* I2C1 on PB8=SCL, PB9=SDA (AF4). Scan for ACK responses. */
+  /* 1. Enable GPIOB and I2C1 clocks. */
+  /* 2. Configure PB8/PB9 as open-drain AF4 with pull-ups. */
+  /* 3. Program CCR/TRISE for ~100 kHz and enable PE. */
+  /* 4. Generate START, send each 7-bit address, check ADDR flag. */
+
+  while (1)
+  {
+  }
+}
