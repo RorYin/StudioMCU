@@ -1,7 +1,7 @@
 #include "stm32f4xx_ll_bus.h"
 #include "stm32f4xx_ll_gpio.h"
 #include "stm32f4xx_ll_usart.h"
-#include "stm32f4xx_hal.h"
+
 static void USART2_Init(void)
 {
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
@@ -13,7 +13,6 @@ static void USART2_Init(void)
   LL_USART_SetBaudRate(USART2, 16000000U, 115200U);
   LL_USART_SetTransferDirection(USART2, LL_USART_DIRECTION_TX);
   LL_USART_Enable(USART2);
-  HAL_Init();
 }
 
 static void USART2_WriteString(const char *text)
@@ -35,13 +34,5 @@ int main(void)
 
   while (1)
   {
-//      Send on press Button connected to Pin 13
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)
-      {
-        for(int i = 0; i<1; i++)
-        {
-          USART2_WriteString("Hello from the NUCLEO-F446RE!\r\n");
-        }
-      }
   }
 }

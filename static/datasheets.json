@@ -1,0 +1,69 @@
+{
+  "board": "NUCLEO-F446RE",
+  "mcu": "STM32F446RE",
+  "documents": [
+    {
+      "id": "ds10693",
+      "category": "MCU",
+      "title": "STM32F446xC/E Datasheet (DS10693)",
+      "description": "Pinouts, electrical characteristics, memory map overview for STM32F446RE.",
+      "doc": "DS10693",
+      "filename": "stm32f446re_datasheet.pdf",
+      "url": "https://www.st.com/resource/en/datasheet/stm32f446re.pdf"
+    },
+    {
+      "id": "rm0390",
+      "category": "MCU",
+      "title": "STM32F446xx Reference Manual (RM0390)",
+      "description": "Full peripheral register description — GPIO, USART, SPI, TIM, ADC, I2C, RCC, etc.",
+      "doc": "RM0390",
+      "filename": "rm0390_stm32f446_reference_manual.pdf",
+      "url": "https://www.st.com/resource/en/reference_manual/rm0390-stm32f446xx-advanced-armbased-32bit-mcus-stmicroelectronics.pdf"
+    },
+    {
+      "id": "es0298",
+      "category": "MCU",
+      "title": "STM32F446xC/xE Errata Sheet (ES0298)",
+      "description": "Known silicon limitations and workarounds for the F446 family.",
+      "doc": "ES0298",
+      "filename": "es0298_stm32f446_errata.pdf",
+      "url": "https://www.st.com/resource/en/errata_sheet/es0298-stm32f446xcxe-device-errata-stmicroelectronics.pdf"
+    },
+    {
+      "id": "pm0214",
+      "category": "MCU",
+      "title": "Cortex-M4 Programming Manual (PM0214)",
+      "description": "ARM Cortex-M4 core programming model used by STM32F4 MCUs.",
+      "doc": "PM0214",
+      "filename": "pm0214_cortex_m4_programming_manual.pdf",
+      "url": "https://www.st.com/resource/en/programming_manual/pm0214-stm32-cortexm4-mcus-and-mpus-programming-manual-stmicroelectronics.pdf"
+    },
+    {
+      "id": "um1724",
+      "category": "Board",
+      "title": "STM32 Nucleo-64 Boards User Manual (UM1724)",
+      "description": "NUCLEO-F446RE board layout, morpho/Arduino pins, ST-LINK, LD2 (PA5), B1 (PC13).",
+      "doc": "UM1724",
+      "filename": "um1724_nucleo64_user_manual.pdf",
+      "url": "https://www.st.com/resource/en/user_manual/um1724-stm32-nucleo64-boards-mb1136-stmicroelectronics.pdf"
+    },
+    {
+      "id": "um1725",
+      "category": "Software",
+      "title": "STM32F4 HAL and LL Drivers (UM1725)",
+      "description": "Official HAL/LL driver description matching StudioMCU lesson APIs.",
+      "doc": "UM1725",
+      "filename": "um1725_stm32f4_hal_ll.pdf",
+      "url": "https://www.st.com/resource/en/user_manual/um1725-description-of-stm32f4-hal-and-lowlayer-drivers-stmicroelectronics.pdf"
+    },
+    {
+      "id": "um1730",
+      "category": "Software",
+      "title": "Getting started with STM32CubeF4 (UM1730)",
+      "description": "CubeF4 package overview and getting-started guidance.",
+      "doc": "UM1730",
+      "filename": "um1730_stm32cubef4_getting_started.pdf",
+      "url": "https://www.st.com/resource/en/user_manual/um1730-getting-started-with-stm32cubef4-mcu-package-stmicroelectronics.pdf"
+    }
+  ]
+}
